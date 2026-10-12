@@ -1,0 +1,1193 @@
+<title>Household Net Worth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single ledger column — net worth headline, owner split, then assets / debts / equity as grouped ledgers */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#15202b; --muted:#5d6b78; --line:#dde3e9; --accent:#1f5f7a;
+  --p1:#3f5bd1; --p2:#d08a1c; --joint:#3e8a6b;
+  --good:#2a7a4f; --bad:#b4442f;
+  --cat-cash:#6aa7c4; --cat-inv:#1f5f7a; --cat-ret:#5b7fd6; --cat-prop:#8a9aa8;
+  --font-display:"Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-body:"Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f151b; --surface:#161e26; --ink:#e6ecf1; --muted:#93a2b0; --line:#26323d; --accent:#5fb3d3;
+  --p1:#8b9cf0; --p2:#efb453; --joint:#6fc39e; --good:#5cc08a; --bad:#e8765f;
+  --cat-cash:#7fbad6; --cat-inv:#4aa0c2; --cat-ret:#8aa6ef; --cat-prop:#7d8d9b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f151b; --surface:#161e26; --ink:#e6ecf1; --muted:#93a2b0; --line:#26323d; --accent:#5fb3d3;
+  --p1:#8b9cf0; --p2:#efb453; --joint:#6fc39e; --good:#5cc08a; --bad:#e8765f;
+  --cat-cash:#7fbad6; --cat-inv:#4aa0c2; --cat-ret:#8aa6ef; --cat-prop:#7d8d9b; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5}
+.wrap{max-width:960px;margin:0 auto;padding:28px 16px 64px;display:flex;flex-direction:column;gap:28px}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+h1,h2{font-family:var(--font-display);margin:0;text-wrap:balance}
+h2{font-size:1.25rem;font-weight:600}
+.eyebrow{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+header{display:flex;flex-direction:column;gap:10px}
+.nw{font-family:var(--font-display);font-size:clamp(2.6rem,8vw,3.8rem);font-weight:700;letter-spacing:-.02em;line-height:1}
+.meta{color:var(--muted);font-size:.85rem}
+.totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tot{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tot .v{font-size:1.25rem;font-weight:500}
+.split{display:flex;flex-direction:column;gap:10px}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line)}
+.bar span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:.88rem}
+.legend b{font-weight:600}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font:inherit;font-size:.85rem;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section{display:flex;flex-direction:column;gap:14px}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.sec-head .num{font-size:1.15rem;font-weight:500}
+.alloc{display:flex;flex-direction:column;gap:8px}
+.alloc-row{display:grid;grid-template-columns:150px minmax(0,1fr) 110px 52px;gap:12px;align-items:center;font-size:.9rem}
+.alloc-row .track{height:10px;background:var(--line);border-radius:5px;overflow:hidden;display:flex}
+.alloc-row .track span{height:100%}
+.alloc-row .r{text-align:right}
+.group{display:flex;flex-direction:column}
+.group-h{display:flex;justify-content:space-between;gap:12px;padding:10px 0 6px;font-weight:600;font-size:.92rem;border-bottom:1px solid var(--line)}
+.group-h .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto 120px 56px;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.row .name{min-width:0}
+.row .name div:first-child{font-weight:500;overflow-wrap:anywhere}
+.row .sub{font-size:.8rem;color:var(--muted)}
+.row .bal{text-align:right}
+.row .pct{text-align:right;color:var(--muted);font-size:.82rem}
+.owner{font:inherit;font-size:.78rem;font-weight:600;padding:3px 8px;border-radius:999px;border:1px solid transparent;background:transparent;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center}
+.owner[data-o="p1"]{color:var(--p1);border-color:var(--p1)}
+.owner[data-o="p2"]{color:var(--p2);border-color:var(--p2)}
+.owner[data-o="joint"]{color:var(--joint);border-color:var(--joint)}
+.owner:disabled{cursor:default}
+.debt .bal{color:var(--bad)}
+.eq{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.eq-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.eq-card .big{font-size:1.3rem;font-weight:500}
+.eq-card .calc{font-size:.8rem;color:var(--muted)}
+.ltv{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.ltv span{display:block;height:100%;background:var(--joint)}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:28px;text-align:center;color:var(--muted)}
+.note{font-size:.82rem;color:var(--muted);max-width:65ch}
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;gap:4px;padding:6px;margin-inline:-6px;background:var(--bg);border-bottom:1px solid var(--line)}
+.tab{font:inherit;font-family:var(--font-display);font-weight:600;font-size:.98rem;padding:8px 18px;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:inset 0 -2px 0 var(--accent)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel{display:flex;flex-direction:column;gap:28px;min-width:0;max-width:100%}
+.wrap>*,.panel>*,section,section>*,.group,.group>*{min-width:0;max-width:100%}
+/* Forecast tabs scroll sideways inside the tab when their tables run wider than the screen */
+#panel-fc,#panel-mtg,#panel-kids{overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--muted) transparent;padding-bottom:6px}
+#panel-fc::-webkit-scrollbar,#panel-mtg::-webkit-scrollbar,#panel-kids::-webkit-scrollbar{height:10px}
+#panel-fc::-webkit-scrollbar-thumb,#panel-mtg::-webkit-scrollbar-thumb,#panel-kids::-webkit-scrollbar-thumb{background:var(--muted);border-radius:5px}
+.tbl-wrap{max-width:100%;-webkit-overflow-scrolling:touch}
+.tbl-wrap::-webkit-scrollbar-thumb{background:var(--muted)!important}
+.tbl{width:max-content;min-width:100%}
+.tbl th,.tbl td{white-space:nowrap}
+.tbl td:first-child,.tbl th:first-child{position:sticky;left:0;background:var(--bg);z-index:1;white-space:normal;min-width:160px;max-width:240px}
+.panel .note{max-width:none}
+.scroll-hint{font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.tabs,.tbl-wrap{overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--muted) transparent}
+.tabs{padding-bottom:10px}
+.tabs::-webkit-scrollbar,.tbl-wrap::-webkit-scrollbar{height:8px}
+.tabs::-webkit-scrollbar-thumb,.tbl-wrap::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+.tabs::-webkit-scrollbar-thumb:hover,.tbl-wrap::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+.tabs::-webkit-scrollbar-track,.tbl-wrap::-webkit-scrollbar-track{background:transparent}
+.tabbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;align-items:flex-start;gap:4px;background:var(--bg)}
+.tabbar .tabs{position:static;flex:1;min-width:0}
+.tab-arrow{flex:none;width:32px;height:38px;margin-top:6px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:1.1rem;line-height:1;cursor:pointer}
+.tab-arrow:disabled{opacity:.35;cursor:default}
+.tab-arrow:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tab{white-space:nowrap;flex:none}
+.fc-tag{display:inline-block;font-family:var(--font-body);font-size:.62rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;margin-left:4px;border:1px dashed currentColor;border-radius:4px;vertical-align:middle;opacity:.8}
+h2 .fc-tag{font-size:.6rem}
+.fc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:4px 28px;padding-top:6px}
+.fc-grid .field{border-bottom:1px solid var(--line);padding:4px 0}
+.hint{font-size:.78rem;color:var(--muted);font-weight:400}
+.fc-sims{display:flex;flex-wrap:wrap;gap:10px 24px;padding:10px 0}
+.tg{display:inline-flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer}
+.tg input{accent-color:var(--accent);width:18px;height:18px;margin:0}
+.chart{position:relative;padding:8px 0}
+.chart .tip{position:absolute;top:0;background:var(--ink);color:var(--bg);font-size:.8rem;padding:4px 8px;border-radius:6px;pointer-events:none;white-space:nowrap;font-family:var(--font-num)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;padding:8px 0}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tile .v{font-size:1.2rem;font-weight:500}
+.tbl td.negc{color:var(--bad)}
+.kid .group-h{align-items:center}
+.add-acct{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.add-acct .name-in{max-width:none;flex:1 1 180px}
+.add-acct .in{width:140px}
+label.btn-ghost{display:inline-block}
+.dp-h{grid-column:1/-1;font-weight:600;font-size:.85rem;padding-top:10px;color:var(--ink)}
+.kid-top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:6px 0}
+.kid-top .field{min-width:260px;flex:0 1 320px}
+.kid-tbl{min-width:520px}
+.kid-tbl tr.sav td{border-top:2px solid var(--line)}
+.inc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.inc-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.inc-card .who{font-family:var(--font-display);font-weight:600;font-size:1.05rem;display:flex;align-items:center;gap:8px}
+.field{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;font-size:.9rem;min-height:36px}
+.field .ro{text-align:right;padding:6px 8px}
+.in{font:inherit;font-family:var(--font-num);font-size:.9rem;text-align:right;width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.in:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.in:disabled{opacity:.7}
+.fv{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0}
+.unit{font-size:.78rem;color:var(--muted);white-space:nowrap}
+.ev{display:inline-flex;align-items:center;justify-content:flex-end;gap:4px;min-width:0}
+.ev-val{padding:6px 2px;white-space:nowrap}
+.ev .in{width:120px}
+.tbl .ev .in,.assume .ev .in{width:90px}
+.pp-list{display:flex;flex-direction:column;gap:6px;width:100%}
+.pp{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--ink)}
+.ev-btn{display:inline-grid;place-items:center;width:28px;height:28px;flex:none;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.ev-btn:hover{color:var(--accent);border-color:var(--line);background:var(--surface)}
+.ev-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.ev.editing .ev-btn{color:var(--good);border-color:var(--line)}
+.inc-card .total{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px;font-weight:600}
+.assume{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--muted);padding:10px 0;flex-wrap:wrap}
+.assume .in{width:80px}
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:.88rem;min-width:560px}
+.tbl th{text-align:right;font-weight:600;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 6px;border-bottom:1px solid var(--line)}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl td{text-align:right;padding:8px 6px;border-bottom:1px solid var(--line);font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.tbl td:first-child{font-family:var(--font-body)}
+.tbl td .in{max-width:110px}
+.xrow{display:grid;grid-template-columns:minmax(0,1fr) auto 110px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.xrow .lbl{min-width:0}
+.xrow .lbl div:first-child{font-weight:500;overflow-wrap:anywhere}
+.xrow .hint{font-size:.78rem;color:var(--muted)}
+.xrow .yr{text-align:right;color:var(--muted);font-size:.85rem}
+.xrow .name-in{font:inherit;font-weight:500;width:100%;max-width:240px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.add-row{padding:10px 0}
+.btn-ghost{font:inherit;font-size:.88rem;padding:6px 12px;border:1px dashed var(--line);border-radius:8px;background:transparent;color:var(--accent);cursor:pointer}
+.btn-ghost:hover{border-color:var(--accent)}
+.btn-ghost:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.del{font:inherit;font-size:.78rem;border:0;background:transparent;color:var(--muted);cursor:pointer;padding:2px 4px;text-decoration:underline}
+.del.confirm{color:var(--bad);font-weight:600}
+@media (max-width:620px){.xrow{grid-template-columns:minmax(0,1fr) auto}.xrow .yr{display:none}}
+.gift-tg{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.gift-tg input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.gift-tg .off{text-decoration:line-through;color:var(--muted)}
+.tbl tr.sum td{font-weight:600;border-top:2px solid var(--ink)}
+.tbl tr.neg td{color:var(--bad)}
+.tbl tr.pos td{color:var(--good)}
+@media (max-width:620px){
+  .ev .in{width:100px}
+  .totals{grid-template-columns:1fr}
+  .alloc-row{grid-template-columns:96px minmax(0,1fr) 92px}
+  .alloc-row .pc{display:none}
+  .row{grid-template-columns:minmax(0,1fr) auto 100px}
+  .row .pct{display:none}
+}
+@media (prefers-reduced-motion:no-preference){.bar span,.track span,.ltv span{transition:width .4s ease}}
+</style>
+
+<div class="wrap">
+  <div class="tabbar">
+  <button type="button" class="tab-arrow" id="tabsLeft" aria-label="Scroll tabs left">‹</button>
+  <nav class="tabs" role="tablist" aria-label="Tracker sections">
+    <button class="tab" role="tab" id="tab-nw" aria-controls="panel-nw" aria-selected="true">Net worth</button>
+    <button class="tab" role="tab" id="tab-inc" aria-controls="panel-inc" aria-selected="false">Income</button>
+    <button class="tab" role="tab" id="tab-exp" aria-controls="panel-exp" aria-selected="false">Expenses</button>
+    <button class="tab fc" role="tab" id="tab-fc" aria-controls="panel-fc" aria-selected="false">Net worth <span class="fc-tag">forecast</span></button>
+    <button class="tab fc" role="tab" id="tab-mtg" aria-controls="panel-mtg" aria-selected="false">Mortgage <span class="fc-tag">forecast</span></button>
+    <button class="tab fc" role="tab" id="tab-kids" aria-controls="panel-kids" aria-selected="false">Kids <span class="fc-tag">forecast</span></button>
+    <button class="tab" role="tab" id="tab-setup" aria-controls="panel-setup" aria-selected="false">Setup</button>
+  </nav>
+  <button type="button" class="tab-arrow" id="tabsRight" aria-label="Scroll tabs right">›</button>
+  </div>
+  <div class="panel" id="panel-nw" role="tabpanel" aria-labelledby="tab-nw">
+  <header>
+    <div class="eyebrow" id="nwLabel">Household net worth</div>
+    <div class="nw num" id="nw">—</div>
+    <div class="meta" id="meta">Loading balances…</div>
+  </header>
+
+  <div class="totals">
+    <div class="tot"><span class="eyebrow">Assets</span><span class="v num" id="tAssets">—</span></div>
+    <div class="tot"><span class="eyebrow">Liabilities</span><span class="v num" id="tDebts">—</span></div>
+    <div class="tot"><span class="eyebrow">Debt-to-asset</span><span class="v num" id="tRatio">—</span></div>
+  </div>
+
+  <div class="split">
+    <div class="eyebrow">Net worth by owner</div>
+    <div class="bar" id="ownerBar"></div>
+    <div class="legend" id="ownerLegend"></div>
+  </div>
+
+  <div class="filters" role="group" aria-label="Show accounts for" id="filters"></div>
+
+  <div id="body"></div>
+
+  <section aria-labelledby="h-add" id="addAcctSec">
+    <div class="sec-head"><h2 id="h-add">Add an account</h2></div>
+    <div class="add-acct" id="addAcct"></div>
+  </section>
+  </div>
+
+  <div class="panel" id="panel-inc" role="tabpanel" aria-labelledby="tab-inc" hidden>
+  <section aria-labelledby="h-i" id="incomeSec">
+    <div class="sec-head"><h2 id="h-i">Income</h2></div>
+    <div class="inc-grid" id="incPeople"></div>
+    <div class="group">
+      <div class="group-h"><span>Stock grants · unvested</span><span class="num" id="grantTotal">—</span></div>
+      <div class="assume"><span id="g-growth-slot" class="pp-list"></span></div>
+      <div class="tbl-wrap"><table class="tbl" id="grantTbl"></table></div>
+    </div>
+  </section>
+  </div>
+
+  <div class="panel" id="panel-exp" role="tabpanel" aria-labelledby="tab-exp" hidden>
+  <section aria-labelledby="h-x" id="expSec">
+    <div class="sec-head"><h2 id="h-x">Expenses</h2><span class="num" id="expHeadVal">—</span></div>
+    <p class="note">Enter each category as a monthly amount for the household. When Claude has pulled recent spending from a connected account, it shows under the category as a guide.</p>
+    <div class="group">
+      <div class="group-h"><span>Housing</span><span class="num" id="expHousing">—</span></div>
+      <div id="expHousingRows"></div>
+      <div class="add-row"><button type="button" class="btn-ghost" id="addMortgage">+ Add mortgage</button></div>
+    </div>
+    <div class="group">
+      <div class="group-h"><span>Living</span><span class="num" id="expLiving">—</span></div>
+      <div id="expLivingRows"></div>
+    </div>
+  </section>
+  </div>
+
+  <div class="panel" id="panel-fc" role="tabpanel" aria-labelledby="tab-fc" hidden>
+  <section aria-labelledby="h-f" id="fcSec">
+    <div class="sec-head"><h2 id="h-f">Net worth <span class="fc-tag">forecast</span></h2><span class="num" id="fcHeadVal">—</span></div>
+    <p class="note">Starts from today’s net worth on the Net worth tab, then adds each year’s after-tax income from the Income tab, subtracts the Expenses tab, and grows investments and home values by the rates below. These are projections, not actual balances.</p>
+    <div class="group">
+      <div class="group-h"><span>Assumptions</span></div>
+      <div class="fc-grid" id="fcAssume"></div>
+      <div class="fc-sims" id="fcSims"></div>
+    </div>
+    <div class="group">
+      <div class="group-h"><span>Projected household net worth</span></div>
+      <div class="chart" id="fcChart"></div>
+      <div class="tbl-wrap"><table class="tbl" id="fcTbl"></table></div>
+    </div>
+    <div class="group">
+      <div class="group-h"><span id="taxHead">After-tax income</span></div>
+      <div class="tbl-wrap"><table class="tbl" id="taxTbl"></table></div>
+      <p class="note" id="taxNote"></p>
+    </div>
+    <div class="group">
+      <div class="group-h"><span>Stock vesting calendar · at the projected share price</span></div>
+      <div class="tbl-wrap"><table class="tbl" id="vestCal"></table></div>
+      <p class="note">Vests land on Jan 1, Apr 1, Jul 1 and Oct 1. A grant whose next vest is dated Dec 31 keeps that pattern, so its January vests count as income in the earlier year.</p>
+    </div>
+  </section>
+  </div>
+
+  <div class="panel" id="panel-mtg" role="tabpanel" aria-labelledby="tab-mtg" hidden>
+  <section aria-labelledby="h-m" id="mtgSec">
+    <div class="sec-head"><h2 id="h-m">New mortgage <span class="fc-tag">forecast</span></h2><span class="num" id="mtgHeadVal">—</span></div>
+    <p class="note">Simulate buying a home. Turn on “Include in net worth forecast” to add the purchase, the loan and the monthly costs to the Net worth (forecast) tab.</p>
+    <div class="fc-sims" id="mtgToggles"></div>
+    <div class="group">
+      <div class="group-h"><span>The purchase</span></div>
+      <div class="fc-grid" id="mtgInputs"></div>
+    </div>
+    <div class="group">
+      <div class="group-h"><span>Paying for the down payment</span><span class="num" id="dpNeed"></span></div>
+      <p class="note">Cash at closing (down payment plus closing costs) comes from these sources in order; whatever they don’t cover comes out of your accounts.</p>
+      <div class="fc-grid" id="dpInputs"></div>
+      <div class="tiles" id="dpTiles"></div>
+      <p class="note" id="dpNote"></p>
+    </div>
+    <div class="group">
+      <div class="group-h"><span>What it costs</span></div>
+      <div class="tiles" id="mtgTiles"></div>
+      <div class="tbl-wrap"><table class="tbl" id="mtgTbl"></table></div>
+    </div>
+  </section>
+  </div>
+
+  <div class="panel" id="panel-kids" role="tabpanel" aria-labelledby="tab-kids" hidden>
+  <section aria-labelledby="h-k" id="kidsSec">
+    <div class="sec-head"><h2 id="h-k">Kids <span class="fc-tag">forecast</span></h2><span class="num" id="kidsHeadVal">—</span></div>
+    <p class="note">Plan each child by birth year. Enter what each category costs per month in today’s dollars and the ages it applies to. The forecast checks the child’s age month by month (from the birth month) and adds the months up to each year; the defaults are a nanny at age 0, daycare from 1 to 5, extracurricular activities from 4 and education from 6 to 17. Each category grows at its own inflation rate below. 529 contributions are savings: they stay in your net worth and grow at the 529 return below. College is not modeled yet. Turn on “Include in net worth forecast” to subtract the living costs there.</p>
+    <div class="fc-sims" id="kidsToggles"></div>
+    <div class="group">
+      <div class="group-h"><span>Inflation by category</span></div>
+      <div class="fc-grid" id="kidsInfl"></div>
+    </div>
+    <div class="group">
+      <div class="group-h"><span>529 growth</span></div>
+      <div class="fc-grid" id="kids529"></div>
+    </div>
+    <div id="kidsRows"></div>
+    <div class="add-row"><button type="button" class="btn-ghost" id="addKid">+ Add child</button></div>
+    <div class="group">
+      <div class="group-h"><span>Yearly cost of kids</span></div>
+      <div class="tbl-wrap"><table class="tbl" id="kidsTbl"></table></div>
+    </div>
+  </section>
+  </div>
+
+  <div class="panel" id="panel-setup" role="tabpanel" aria-labelledby="tab-setup" hidden>
+  <section aria-labelledby="h-s" id="setupSec">
+    <div class="sec-head"><h2 id="h-s">Household setup</h2></div>
+    <p class="note">Who is in the household, how you file taxes, and which kinds of income each person has. The Income tab only shows the fields you turn on here.</p>
+    <div id="setupBody"></div>
+    <div class="group" id="backupGroup" hidden>
+      <div class="group-h"><span>Your data</span></div>
+      <p class="note">This copy saves everything in this browser only. Download a backup now and then, and restore it on another device or browser.</p>
+      <div class="add-row"><button type="button" class="btn-ghost" id="exportBtn">Download backup</button> <label class="btn-ghost" for="importFile">Restore from backup</label><input type="file" id="importFile" accept="application/json" hidden> <span class="hint" id="backupMsg"></span></div>
+    </div>
+  </section>
+  </div>
+</div>
+
+<script>
+/* Household setup lives in meta/config (filled by the Claude skill's interview, or the Setup tab). */
+let cfg={people:[{key:"p1",name:"Person 1"},{key:"p2",name:"Person 2"}],filing:"mfj",features:{}};
+const PKEYS=()=>cfg.people.map(p=>p.key);
+const OWNERS_F=()=>cfg.people.length>1?[...PKEYS(),"joint"]:PKEYS();
+const oname=k=>k==="joint"?"Joint":((cfg.people.find(p=>p.key===k)||{}).name||k);
+const FEAT_DEFAULT={bonus:true,stock:false,refresher:false,rental:false,gifts:false};
+const feat=(k,f)=>{const v=((cfg.features||{})[k]||{})[f]; return v==null?FEAT_DEFAULT[f]:!!v;};
+const ASSET_CATS=[
+  {k:"cash",label:"Cash",color:"var(--cat-cash)"},
+  {k:"investments",label:"Taxable investments",color:"var(--cat-inv)"},
+  {k:"retirement",label:"Retirement",color:"var(--cat-ret)"},
+  {k:"property",label:"Property",color:"var(--cat-prop)"}];
+const DEBT_CATS=[
+  {k:"mortgage",label:"Mortgage",color:"var(--bad)"},
+  {k:"credit_card",label:"Credit cards",color:"var(--bad)"},
+  {k:"loan",label:"Other loans",color:"var(--bad)"}];
+const OCOLOR={p1:"var(--p1)",p2:"var(--p2)",joint:"var(--joint)"};
+let accounts=[], meta=null, filter="All", db=undefined, canWrite=true;
+try{const f=localStorage.getItem("nw-filter"); if(f) filter=f;}catch(e){}
+
+const $=id=>document.getElementById(id);
+const usd=(n,c)=>(n<0?"−":"")+"$"+Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:c?2:0,maximumFractionDigits:c?2:0});
+const pct=n=>(isFinite(n)?(n*100).toFixed(1):"0.0")+"%";
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtDate=d=>{if(!d)return"";const t=new Date(d+(d.length===10?"T12:00:00":""));return isNaN(t)?d:t.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
+
+function renderChips(){
+  const opts=[["All","Everyone"],...OWNERS_F().map(o=>[o,oname(o)])];
+  if(!opts.some(([k])=>k===filter)) filter="All";
+  $("filters").innerHTML=opts.length>2?opts.map(([k,l])=>`<button class="chip" id="f-${k}" data-f="${k}" aria-pressed="${k===filter}">${esc(l)}</button>`).join(""):"";
+}
+function render(){
+  if(document.activeElement&&$("body").contains(document.activeElement)&&document.activeElement.tagName==="INPUT") return;
+  renderChips(); renderAddAcct();
+  if(!accounts.length){
+    ["nw","tAssets","tDebts","tRatio"].forEach(i=>$(i).textContent="—");
+    $("ownerBar").innerHTML="";$("ownerLegend").innerHTML="";
+    $("meta").textContent="No balances yet.";
+    $("body").innerHTML='<div class="empty">No accounts yet. Add them below, or ask Claude to add them from your account screenshots.</div>';
+    return;
+  }
+  const all=accounts;
+  const A=all.filter(a=>a.kind==="asset"), D=all.filter(a=>a.kind==="debt");
+  const eff=a=>(+a.balance||0)*(typeof a.ownershipShare==="number"?a.ownershipShare:1);
+  const sum=xs=>xs.reduce((s,a)=>s+eff(a),0);
+  const vis=a=>filter==="All"||a.owner===filter;
+  const fA=A.filter(vis), fD=D.filter(vis);
+  const ftA=sum(fA), ftD=sum(fD), fNW=ftA-ftD;
+  $("nwLabel").textContent=filter==="All"?"Household net worth":filter==="joint"?"Joint net worth":oname(filter)+"’s net worth";
+  $("nw").textContent=usd(fNW);
+  $("tAssets").textContent=usd(ftA);
+  $("tDebts").textContent=usd(ftD);
+  $("tRatio").textContent=ftA?pct(ftD/ftA):"—";
+  const dates=all.map(a=>a.asOf).filter(Boolean).sort();
+  let m=[];
+  if(meta&&meta.lastRefresh) m.push("Last refreshed "+fmtDate(meta.lastRefresh));
+  if(dates.length) m.push("balances as of "+fmtDate(dates[0])+(dates[0]!==dates[dates.length-1]?" – "+fmtDate(dates[dates.length-1]):""));
+  $("meta").textContent=m.join(" · ");
+
+  // owner split
+  const OWN=OWNERS_F();
+  const byO={};OWN.forEach(o=>byO[o]=sum(A.filter(a=>a.owner===o))-sum(D.filter(a=>a.owner===o)));
+  const pos=OWN.filter(o=>byO[o]>0), posT=pos.reduce((s,o)=>s+byO[o],0);
+  $("ownerBar").innerHTML=pos.map(o=>`<span style="width:${byO[o]/posT*100}%;background:${OCOLOR[o]}" title="${esc(oname(o))}"></span>`).join("");
+  $("ownerLegend").innerHTML=OWN.filter(o=>all.some(a=>a.owner===o)).map(o=>`<span><span class="dot" style="background:${OCOLOR[o]}"></span><b>${esc(oname(o))}</b> <span class="num">${usd(byO[o])}</span> <span style="color:var(--muted)">${posT?pct(Math.max(byO[o],0)/posT):""}</span></span>`).join("");
+
+  const scopeLabel=filter==="All"?"":` · ${esc(oname(filter))}`;
+
+  const rowHTML=(a,base,isDebt)=>`
+    <div class="row${isDebt?" debt":""}">
+      <div class="name"><div>${esc(a.name)}</div><div class="sub">${esc(a.institution)}${a.last4?" ···"+esc(a.last4):""}${a.asOf?" · "+fmtDate(a.asOf):""}${a.source?" · "+esc(a.source):""}</div>${typeof a.ownershipShare==="number"&&a.ownershipShare!==1?`<div class="sub">${Math.round(a.ownershipShare*100)}% share of ${usd(+a.balance)}${a.coOwners?" · co-owned with "+esc(a.coOwners):""}</div>`:""}</div>
+      <select class="owner" id="own-${esc(a.id)}" data-id="${esc(a.id)}" data-o="${esc(a.owner)}" aria-label="Owner of ${esc(a.name)}" ${canWrite&&db?"":"disabled"}>
+        ${OWN.map(o=>`<option value="${o}"${o===a.owner?" selected":""}>${esc(oname(o))}</option>`).join("")}
+      </select>
+      <div class="bal num">${canWrite&&db?ev(`acct|${a.id}|balance`,a.balance,"price",`balance of ${a.name}`):usd(eff(a),true)}</div>
+      <div class="pct num">${base?pct(eff(a)/base):""}${canWrite&&db?`<div><button type="button" class="del${pendingDelete===a.id?" confirm":""}" data-delacct="${esc(a.id)}">${pendingDelete===a.id?"Tap again":"Remove"}</button></div>`:""}</div>
+    </div>`;
+
+  const ledger=(cats,list,total,isDebt)=>cats.map(c=>{
+      const items=list.filter(a=>a.category===c.k).sort((x,y)=>y.balance-x.balance);
+      if(!items.length) return "";
+      const s=sum(items);
+      return `<div class="group"><div class="group-h"><span><span class="sw" style="background:${c.color}"></span>${c.label} <span style="color:var(--muted);font-weight:400">· ${items.length}</span></span><span class="num">${usd(s)}</span></div>${items.map(a=>rowHTML(a,total,isDebt)).join("")}</div>`;
+    }).join("");
+
+  const allocRows=ASSET_CATS.map(c=>{
+    const items=fA.filter(a=>a.category===c.k); if(!items.length) return "";
+    const s=sum(items);
+    const segs=OWN.map(o=>{const v=sum(items.filter(a=>a.owner===o));return v>0?`<span style="width:${v/ftA*100}%;background:${OCOLOR[o]}" title="${esc(oname(o))}: ${usd(v)}"></span>`:""}).join("");
+    return `<div class="alloc-row"><span>${c.label}</span><div class="track">${segs}</div><span class="r num">${usd(s)}</span><span class="r num pc" style="color:var(--muted)">${pct(s/ftA)}</span></div>`;
+  }).join("");
+
+  // equity: property net of secured debt
+  const props=fA.filter(a=>a.category==="property");
+  const eqCards=props.map(p=>{
+    const liens=D.filter(d=>d.securedBy===p.id); const l=sum(liens); const v=eff(p); const e=v-l;
+    const partial=typeof p.ownershipShare==="number"&&p.ownershipShare!==1;
+    return `<div class="eq-card"><span class="eyebrow">${esc(p.name)} · ${esc(oname(p.owner))}</span><span class="big num">${usd(e)}</span>
+      <span class="calc num">${usd(v)} ${partial?`(${Math.round(p.ownershipShare*100)}% of ${usd(+p.balance)})`:"value"}${liens.length?` − ${usd(l)} ${esc(liens.map(x=>x.name).join(", "))}`:" · no loan"}</span>
+      ${liens.length?`<div class="ltv" title="Equity share"><span style="width:${Math.max(0,v?e/v*100:0)}%"></span></div><span class="calc">${pct(v?e/v:0)} equity in ${partial?"your share":"the property"} · full loan counted${partial?` · ${pct(l/p.balance)} loan-to-value on the whole home`:""}</span>`:""}</div>`;
+  }).join("");
+  const liquid=sum(fA.filter(a=>a.category==="cash"||a.category==="investments"));
+  const ret=sum(fA.filter(a=>a.category==="retirement"));
+  const propEq=props.reduce((s,p)=>s+eff(p)-sum(D.filter(d=>d.securedBy===p.id)),0);
+  const unsecured=sum(fD.filter(d=>!d.securedBy));
+  const share=v=>fNW>0?pct(v/fNW)+" of net worth":"";
+
+  $("body").innerHTML=`
+  <section aria-labelledby="h-a">
+    <div class="sec-head"><h2 id="h-a">Assets${scopeLabel}</h2><span class="num">${usd(ftA)}</span></div>
+    <div class="alloc">${allocRows}</div>
+    ${ledger(ASSET_CATS,fA,ftA,false)||'<div class="empty">No assets for this owner.</div>'}
+  </section>
+  <section aria-labelledby="h-d">
+    <div class="sec-head"><h2 id="h-d">Liabilities${scopeLabel}</h2><span class="num">${usd(ftD)}</span></div>
+    ${ledger(DEBT_CATS,fD,ftD,true)||'<div class="empty">No debts for this owner.</div>'}
+  </section>
+  <section aria-labelledby="h-e">
+    <div class="sec-head"><h2 id="h-e">Equity${scopeLabel}</h2><span class="num">${usd(fNW)}</span></div>
+    <div class="eq">
+      ${eqCards}
+      <div class="eq-card"><span class="eyebrow">Liquid (cash + taxable)</span><span class="big num">${usd(liquid)}</span><span class="calc">${share(liquid)}</span></div>
+      <div class="eq-card"><span class="eyebrow">Retirement</span><span class="big num">${usd(ret)}</span><span class="calc">${share(ret)}</span></div>
+      ${props.length||unsecured?`<div class="eq-card"><span class="eyebrow">Property equity</span><span class="big num">${usd(propEq)}</span><span class="calc">${share(propEq)}${unsecured?` · less ${usd(unsecured)} card balances`:""}</span></div>`:""}
+    </div>
+    <p class="note">Change an account’s owner with its tag and a balance with the pencil; every total updates for everyone who opens the tracker.</p>
+  </section>`;
+
+  document.querySelectorAll("select.owner").forEach(s=>s.addEventListener("change",async e=>{
+    const id=e.target.dataset.id, o=e.target.value; e.target.dataset.o=o;
+    try{await db.doc("accounts/"+id).update({owner:o});}
+    catch(err){canWrite=false;render();}
+  }));
+}
+
+$("filters").addEventListener("click",e=>{const b=e.target.closest(".chip"); if(!b) return; filter=b.dataset.f;try{localStorage.setItem("nw-filter",filter)}catch(e){};render();});
+const ACCT_CATS=[["cash","Cash (checking, savings)","asset"],["investments","Taxable investments","asset"],["retirement","Retirement (401(k), IRA)","asset"],["property","Property (home, car)","asset"],["mortgage","Mortgage","debt"],["credit_card","Credit card","debt"],["loan","Other loan","debt"]];
+function renderAddAcct(){
+  const el=$("addAcct"); if(!el) return; const ed=!!db&&canWrite; $("addAcctSec").hidden=!ed; if(!ed) return;
+  if(el.dataset.built==="1"&&el.contains(document.activeElement)) return;
+  const cur={name:$("na-name")?.value||"",inst:$("na-inst")?.value||"",cat:$("na-cat")?.value||"cash",own:$("na-own")?.value||PKEYS()[0],bal:$("na-bal")?.value||""};
+  el.innerHTML=`<input class="name-in" id="na-name" placeholder="Account name, e.g. Joint checking" value="${esc(cur.name)}" aria-label="Account name">
+    <input class="name-in" id="na-inst" placeholder="Institution" value="${esc(cur.inst)}" aria-label="Institution">
+    <select class="name-in" id="na-cat" aria-label="Type">${ACCT_CATS.map(([k,l])=>`<option value="${k}"${k===cur.cat?" selected":""}>${l}</option>`).join("")}</select>
+    <select class="name-in" id="na-own" aria-label="Owner">${OWNERS_F().map(o=>`<option value="${o}"${o===cur.own?" selected":""}>${esc(oname(o))}</option>`).join("")}</select>
+    <input class="in" id="na-bal" type="number" min="0" step="0.01" placeholder="Balance" value="${esc(cur.bal)}" aria-label="Balance">
+    <button type="button" class="btn-ghost" id="na-add">Add account</button><span class="hint" id="na-msg"></span>`;
+  el.dataset.built="1";
+}
+document.addEventListener("click",async e=>{
+  if(e.target.id==="na-add"){
+    const name=$("na-name").value.trim(), bal=+$("na-bal").value; if(!name||!isFinite(bal)){$("na-msg").textContent="Enter a name and a balance.";return;}
+    const cat=$("na-cat").value, kind=(ACCT_CATS.find(c=>c[0]===cat)||[])[2]||"asset";
+    const data={name,institution:$("na-inst").value.trim(),owner:$("na-own").value,kind,category:cat,balance:bal,asOf:new Date().toISOString().slice(0,10),source:"Entered"};
+    const ref=db.collection("accounts").doc(); accounts=[...accounts,{id:ref.id,...data}];
+    $("na-name").value="";$("na-inst").value="";$("na-bal").value=""; $("na-msg").textContent="Added "+name+".";
+    render(); try{await ref.set(data);}catch(err){$("na-msg").textContent="Couldn’t save that account.";}
+  }
+  const d=e.target.closest&&e.target.closest("button[data-delacct]");
+  if(d){const id=d.dataset.delacct;
+    if(pendingDelete===id){pendingDelete=null; accounts=accounts.filter(a=>a.id!==id); render(); try{await db.doc("accounts/"+id).delete();}catch(err){}}
+    else{pendingDelete=id; render(); setTimeout(()=>{if(pendingDelete===id){pendingDelete=null;render();}},4000);}}
+});
+render();
+
+/* ---------- Income & taxes ---------- */
+let income={}, grants=[], assume={stockGrowthPct:0};
+const bonusAmt=d=>(+d.base||0)*(+d.bonusPct||0)/100;
+const projPrice=x=>{const pp=(assume.projectedPrices||{})[x.ticker]; return +pp>0?+pp:(+x.price||0);};
+let PEOPLE=["p1","p2"];
+// 2026 federal brackets and standard deduction (IRS)
+const FEDTAX={
+  mfj:{fed:[[0,.10],[24800,.12],[100800,.22],[211400,.24],[403550,.32],[512450,.35],[768700,.37]],fedStd:32200,medAddl:250000},
+  single:{fed:[[0,.10],[12400,.12],[50400,.22],[105700,.24],[201775,.32],[256225,.35],[640600,.37]],fedStd:16100,medAddl:200000}};
+/* State taxes come from meta/config.state (the Claude skill writes the household's state there).
+   Shape: {code, name, income:{mfj:{brackets:[[from,rate],...],std}, single:{...}} or null for no income tax,
+           surcharge:{threshold,rate} (optional), payroll:{label,rate,wageCap} (optional, per person)}.
+   California is built in (2025 schedules, the latest published, with the 2026 standard deduction). */
+const STATE_CA={code:"CA",name:"California",
+  income:{mfj:{brackets:[[0,.01],[22158,.02],[52528,.04],[82904,.06],[115084,.08],[145448,.093],[742958,.103],[891542,.113],[1485906,.123]],std:11412},
+          single:{brackets:[[0,.01],[11079,.02],[26264,.04],[41452,.06],[57542,.08],[72724,.093],[371479,.103],[445771,.113],[742953,.123]],std:5706}},
+  surcharge:{threshold:1000000,rate:.01}, payroll:{label:"CA SDI",rate:.013,wageCap:null}};
+const STATE_NONE={code:"",name:"No state income tax",income:null,surcharge:null,payroll:null};
+const ST=()=>{const s=cfg.state; return s&&typeof s==="object"?s:STATE_CA;};
+const TX=()=>{const f=cfg.filing==="single"?"single":"mfj", st=ST(), si=st.income&&(st.income[f]||st.income.mfj); return {...FEDTAX[f],st,stBr:si?si.brackets||[]:[],stStd:si?(+si.std||0):0};};
+const SS_BASE=184500;
+const prog=(t,br)=>{let tax=0;for(let i=0;i<br.length;i++){const lo=br[i][0],hi=i+1<br.length?br[i+1][0]:Infinity;if(t>lo)tax+=(Math.min(t,hi)-lo)*br[i][1];}return tax;};
+function taxes(wages,other){ // wages: {p1:n, p2:n}; other: non-wage taxable income (rent): income tax only, no payroll tax
+  other=+other||0; const T=TX();
+  const W=PEOPLE.reduce((s,p)=>s+(wages[p]||0),0), I=W+other;
+  const fed=prog(Math.max(0,I-T.fedStd),T.fed);
+  const stTI=Math.max(0,I-T.stStd), sur=T.st.surcharge;
+  const ca=prog(stTI,T.stBr)+(sur?(+sur.rate||0)*Math.max(0,stTI-(+sur.threshold||0)):0); // state income tax
+  const pr=T.st.payroll; let ss=0,med=0,sdi=0;
+  PEOPLE.forEach(p=>{const w=wages[p]||0;ss+=0.062*Math.min(w,SS_BASE);med+=0.0145*w;if(pr) sdi+=(+pr.rate||0)*(pr.wageCap?Math.min(w,+pr.wageCap):w);});
+  med+=0.009*Math.max(0,W-T.medAddl);
+  return {W,other,I,fed,ca,ss,med,sdi,total:fed+ca+ss+med+sdi};
+}
+/* Quarterly vest dates fall on Jan 1 / Apr 1 / Jul 1 / Oct 1. Some plans date a grant's January vest on Dec 31 of the prior year;
+   a grant whose next vest is Dec 31 keeps that pattern, so its year-end vest counts as income in the earlier year. */
+function nextVestDate(d,yearEndDec31){
+  const y=d.getFullYear(), m=d.getMonth(), day=d.getDate();
+  if(m===11&&day===31) return new Date(y+1,3,1,12);  // Dec 31 -> Apr 1
+  if(m<3) return new Date(y,3,1,12);                  // Jan -> Apr 1
+  if(m<6) return new Date(y,6,1,12);                  // Apr -> Jul 1
+  if(m<9) return new Date(y,9,1,12);                  // Jul -> Oct 1
+  return yearEndDec31?new Date(y,11,31,12):new Date(y+1,0,1,12); // Oct -> Dec 31 or Jan 1
+}
+function vestSchedule(x){ // [{date, shares}]
+  const out=[]; let left=+x.unvestedShares||0; const per=+x.sharesPerQuarter||0; if(!per||!x.nextVest) return out;
+  let d=new Date(x.nextVest+"T12:00:00"); const ye=x.yearEndDec31!=null?!!x.yearEndDec31:(d.getMonth()===11&&d.getDate()===31); let guard=0;
+  while(left>0.01&&guard++<80){const sh=Math.min(per,left); left-=sh; out.push({date:d,shares:sh}); d=nextVestDate(d,ye);}
+  return out;
+}
+/* Future annual refreshers: granted each July from next year through the forecast horizon, vesting quarterly
+   from Oct 1 (January vests dated Dec 31) over the chosen number of years. */
+function refresherGrants(owner){
+  const d=income[owner]||{}, V=+d.refresher||0, yrsV=+d.refresherYears||0; if(!V||!yrsV) return [];
+  const tk=(grants.find(g=>g.owner===owner)||{}).ticker||"", px=projPrice({ticker:tk,price:(grants.find(g=>g.owner===owner)||{}).price});
+  if(!px) return [];
+  const yr0=new Date().getFullYear()+1, H=(()=>{try{return Math.max(1,Math.min(40,+F().horizon||10));}catch(e){return 10;}})(), out=[];
+  for(let y=yr0;y<yr0+H;y++){const sh=V/px; out.push({id:"ref-"+y,owner,name:`${y} refresher`,ticker:tk,price:px,unvestedShares:sh,sharesPerQuarter:sh/(yrsV*4),nextVest:`${y}-10-01`,yearEndDec31:true,refresher:true});}
+  return out;
+}
+function vestsByYear(owner){ // {year: {shares, value}}
+  const out={};
+  [...grants.filter(x=>x.owner===owner),...refresherGrants(owner)].forEach(x=>{
+    const px=projPrice(x);
+    vestSchedule(x).forEach(({date:d,shares:sh})=>{
+      const y=d.getFullYear(); out[y]=out[y]||{shares:0,value:0};
+      out[y].shares+=sh; out[y].value+=sh*px;
+    });
+  });
+  return out;
+}
+/* Saved values show as text with a pencil button; empty values (or ones being edited) show an input. */
+const editing=new Set();
+let cancelEdit=null;
+const PENCIL='<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+const CHECK='<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+function ev(id,val,kind,label){
+  const ed=!!db&&canWrite, v=+val||0;
+  const step={month:1,age:1,usd:1000,pct:0.5,rate:0.125,shares:1,perq:0.1,price:0.01,year:1,int:1}[kind]||1;
+  const disp=kind==="usd"?usd(v):kind==="price"?usd(v,true):(kind==="pct"||kind==="rate")?(+v.toFixed(3))+"%":kind==="year"?String(v):kind==="int"?String(v)+" yrs":kind==="age"?"age "+String(v):kind==="month"?(["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][v-1]||String(v)):(+v.toFixed(2)).toLocaleString("en-US");
+  const savedZeroOk=(kind==="rate"||kind==="age"||kind==="month")&&val!==undefined&&val!==null&&val!=="";
+  if(ed&&(editing.has(id)||(!v&&!savedZeroOk))){
+    return `<span class="ev editing"><input class="in" id="${id}" type="number" ${kind==="rate"?'min="-50"':'min="0"'} step="${step}" inputmode="decimal" value="${v||""}" placeholder="0" aria-label="${esc(label)}"><button type="button" class="ev-btn" data-done="${id}" aria-label="Save ${esc(label)}" title="Save">${CHECK}</button></span>`;
+  }
+  return `<span class="ev"><span class="ev-val num">${disp}</span>${ed?`<button type="button" class="ev-btn" data-edit="${id}" aria-label="Edit ${esc(label)}" title="Edit">${PENCIL}</button>`:""}</span>`;
+}
+function fieldRow(id,label,inner){return `<div class="field"><span>${label}</span><span class="fv">${inner}</span></div>`;}
+function buildIncome(){
+  if(document.activeElement&&$("incomeSec").contains(document.activeElement)&&document.activeElement.tagName==="INPUT") {computeIncome();return;}
+  $("incPeople").innerHTML=PEOPLE.map(k=>{const p=esc(oname(k)), d=income[k]||{};
+    return `<div class="inc-card"><div class="who"><span class="dot" style="background:${OCOLOR[k]}"></span>${p}</div>
+      ${fieldRow("","Base salary",ev(`inc-${k}-base`,d.base,"usd",`${p}'s base salary`))}
+      ${feat(k,"bonus")?fieldRow("",`Projected bonus <span class="sub" id="inc-${k}-bonusAmt" style="color:var(--muted);font-size:.8rem"></span>`,ev(`inc-${k}-bonusPct`,d.bonusPct,"pct",`${p}'s bonus as % of base`)+`<span class="unit">of base</span>`):""}
+      ${feat(k,"stock")?fieldRow("",`Stock vesting in ${new Date().getFullYear()+1}`,`<span class="ev"><span class="ev-val num" id="inc-${k}-stock">—</span></span>`):""}
+      ${feat(k,"refresher")?fieldRow("",`Annual stock refresher <div class="hint">Grant value each July, starting ${new Date().getFullYear()+1}</div>`,ev(`inc-${k}-refresher`,d.refresher,"usd",`${p}'s annual stock refresher grant value`)+`<span class="unit">/yr</span>`)+fieldRow("",`Refreshers vest over <div class="hint">Quarterly, from Oct 1 of the grant year</div>`,ev(`inc-${k}-refresherYears`,d.refresherYears,"int",`years each refresher vests over`)):""}
+      ${feat(k,"rental")?fieldRow("",`Rental income <span class="sub" id="inc-${k}-rentalYr" style="color:var(--muted);font-size:.8rem"></span>`,ev(`inc-${k}-rental`,d.rental,"usd",`${p}'s monthly rental income`)+`<span class="unit">/mo</span>`):""}
+      ${feat(k,"gifts")?fieldRow("","Cash gifts from family (yearly)",ev(`inc-${k}-gifts`,d.gifts,"usd",`${p}'s yearly cash gifts from family`)):""}
+      <div class="total"><span>Annual gross</span><span class="num" id="inc-${k}-gross">—</span></div></div>`;}).join("");
+  const tickers=[...new Set(grants.map(x=>x.ticker).filter(Boolean))];
+  $("g-growth-slot").innerHTML=tickers.map(t=>{const cur=(grants.find(x=>x.ticker===t)||{}).price;
+    return `<span class="pp"><span>Projected ${esc(t)} share price for future vests</span>${ev(`pp-${t}`,(assume.projectedPrices||{})[t],"price",`projected ${t} share price`)}<span class="unit">today ${usd(+cur||0,true)}</span></span>`;}).join("");
+  const rows=grants.slice().sort((a,b)=>(a.grantDate||"").localeCompare(b.grantDate||""));
+  $("grantTbl").innerHTML=`<thead><tr><th>Grant</th><th>Owner</th><th>Unvested shares</th><th>Shares / quarter</th><th>Next vest</th><th>Share price</th><th>Value today</th></tr></thead><tbody>${
+    rows.length?rows.map(x=>`<tr><td>${esc(x.name)}<div class="sub" style="font-size:.78rem;color:var(--muted)">${esc(x.ticker||"")} · granted ${fmtDate(x.grantDate)}</div></td>
+      <td>${esc(oname(x.owner))}</td>
+      <td>${ev(`gr-${x.id}-unvestedShares`,x.unvestedShares,"shares",`unvested shares for ${x.name}`)}</td>
+      <td>${ev(`gr-${x.id}-sharesPerQuarter`,x.sharesPerQuarter,"perq",`shares per quarter for ${x.name}`)}</td>
+      <td>${fmtDate(x.nextVest)}</td>
+      <td>${ev(`gr-${x.id}-price`,x.price,"price",`share price for ${x.name}`)}</td>
+      <td>${usd((+x.unvestedShares||0)*(+x.price||0))}</td></tr>`).join("")
+    :`<tr><td colspan="7" style="text-align:center;color:var(--muted);font-family:var(--font-body)">No grants yet. Ask Claude to add them from your stock plan account or a screenshot.</td></tr>`}</tbody>`;
+  computeIncome();
+}
+function parseField(id){
+  let m=id.match(/^inc-(p1|p2)-(base|bonusPct|gifts|rental|refresher|refresherYears)$/);
+  if(!m){const a=id.match(/^acct\|(.+)\|balance$/); if(a) return {path:"accounts/"+a[1],field:"balance",acct:a[1],apply:v=>{const x=accounts.find(q=>q.id===a[1]); if(x){x.balance=v;x.asOf=new Date().toISOString().slice(0,10);}}};}
+  if(m) return {path:"income/"+m[1],field:m[2],apply:v=>{income[m[1]]={...(income[m[1]]||{}),[m[2]]:v};}};
+  m=id.match(/^pp-([A-Za-z0-9.]+)$/);
+  if(m) return {path:"meta/assumptions",field:"projectedPrices",nested:m[1],apply:v=>{assume={...assume,projectedPrices:{...(assume.projectedPrices||{}),[m[1]]:v}};}};
+  m=id.match(/^gr-(.+)-(unvestedShares|sharesPerQuarter|price)$/);
+  if(m) return {path:"grants/"+m[1],field:m[2],apply:v=>{const g=grants.find(x=>x.id===m[1]); if(g) g[m[2]]=v;}};
+  m=id.match(/^exp-([a-zA-Z]+)$/);
+  if(m) return {path:"expenses/"+m[1],field:"monthly",apply:v=>{expenses[m[1]]={...(expenses[m[1]]||{}),monthly:v};}};
+  m=id.match(/^fx\|([^|]+)\|([^|]+)\|([^|]+)$/);
+  if(m){const path=m[1]+"/"+m[2], field=m[3];
+    return {path,field,apply:v=>{ if(m[1]==="kids"){const k=kids.find(q=>q.id===m[2]); if(k) k[field]=v;} fx[path]={...(fx[path]||{}),[field]:v}; }};}
+  m=id.match(/^mort-(.+)-monthly$/);
+  if(m) return {path:"mortgages/"+m[1],field:"monthly",apply:v=>{const x=mortgages.find(q=>q.id===m[1]); if(x) x.monthly=v;}};
+  return null;
+}
+function computeIncome(){
+  const yr0=new Date().getFullYear()+1, years=[yr0,yr0+1,yr0+2,yr0+3];
+  const vb={}; PEOPLE.forEach(p=>vb[p]=vestsByYear(p));
+  let headGross=0;
+  PEOPLE.forEach(p=>{const k=p,d=income[k]||{};const st=(vb[p][yr0]||{}).value||0;
+    const el=$(`inc-${k}-stock`); if(el) el.textContent=usd(st);
+    const ba=$(`inc-${k}-bonusAmt`); if(ba) ba.textContent="· "+usd(bonusAmt(d));
+    const ry=$(`inc-${k}-rentalYr`); if(ry) ry.textContent="· "+usd((+d.rental||0)*12)+"/yr";
+    const gross=(+d.base||0)+bonusAmt(d)+st+(+d.rental||0)*12+(+d.gifts||0); headGross+=gross;
+    const g=$(`inc-${k}-gross`); if(g) g.textContent=usd(gross);});
+  let unv=0; grants.forEach(x=>unv+=(+x.unvestedShares||0)*(+x.price||0));
+  $("grantTotal").textContent=usd(unv);
+  computeForecast();
+}
+/* ---------- Expenses ---------- */
+let expenses={}, mortgages=[], spendHints={}, spendSource="";
+const LIVING=[["groceries","Groceries"],["travel","Travel"],["medical","Medical"],["entertainment","Entertainment"],["dining","Dining out"],["incidentals","Incidentals"],["carLease","Car lease"]];
+const monthlyTotal=()=>(+((expenses.rent||{}).monthly)||0)+mortgages.reduce((s,m)=>s+(+m.monthly||0),0)+LIVING.reduce((s,[k])=>s+(+((expenses[k]||{}).monthly)||0),0);
+const hintHTML=k=>{const h=spendHints[k]; return h?`<div class="hint">Recent spending${spendSource?" ("+esc(spendSource)+")":""}: ${usd(+h.monthly||0)}/mo${h.note?" · "+esc(h.note):""}</div>`:"";};
+let pendingDelete=null;
+function buildExpenses(){
+  if(document.activeElement&&$("expSec").contains(document.activeElement)&&document.activeElement.tagName==="INPUT"){computeExpenses();return;}
+  const ed=!!db&&canWrite;
+  const row=(lbl,inner,id,extra)=>`<div class="xrow"><div class="lbl">${lbl}${extra||""}</div><span class="fv">${inner}<span class="unit">/mo</span></span><span class="yr num" id="${id}-yr"></span></div>`;
+  const ms=mortgages.slice().sort((a,b)=>(a.order||0)-(b.order||0));
+  $("expHousingRows").innerHTML=
+    row(`<div>Rent</div>`,ev("exp-rent",(expenses.rent||{}).monthly,"usd","monthly rent"),"exp-rent",hintHTML("rent"))+
+    ms.map(m=>row(`<div>${ed?`<input class="name-in" id="mortname-${esc(m.id)}" value="${esc(m.name||"Mortgage")}" aria-label="Mortgage name">`:esc(m.name||"Mortgage")}</div><div class="hint">${esc(m.owner||"")}${m.note?" · "+esc(m.note):""}${ed?` · <button type="button" class="del${pendingDelete===m.id?" confirm":""}" data-del="${esc(m.id)}">${pendingDelete===m.id?"Tap again to remove":"Remove"}</button>`:""}</div>`,
+      ev(`mort-${m.id}-monthly`,m.monthly,"usd",`monthly payment for ${m.name||"mortgage"}`),`mort-${m.id}`,"")).join("");
+  $("addMortgage").hidden=!ed;
+  $("expLivingRows").innerHTML=LIVING.map(([k,l])=>row(`<div>${l}</div>`,ev(`exp-${k}`,(expenses[k]||{}).monthly,"usd",`monthly ${l.toLowerCase()}`),`exp-${k}`,hintHTML(k))).join("");
+  computeExpenses();
+}
+function computeExpenses(){
+  const setYr=(id,m)=>{const el=$(id+"-yr"); if(el) el.textContent=usd((+m||0)*12)+"/yr";};
+  setYr("exp-rent",(expenses.rent||{}).monthly);
+  mortgages.forEach(m=>setYr(`mort-${m.id}`,m.monthly));
+  LIVING.forEach(([k])=>setYr(`exp-${k}`,(expenses[k]||{}).monthly));
+  const housing=(+((expenses.rent||{}).monthly)||0)+mortgages.reduce((s,m)=>s+(+m.monthly||0),0);
+  const living=LIVING.reduce((s,[k])=>s+(+((expenses[k]||{}).monthly)||0),0);
+  $("expHousing").textContent=usd(housing)+"/mo";
+  $("expLiving").textContent=usd(living)+"/mo";
+  const mo=housing+living;
+  $("expHeadVal").textContent=usd(mo)+"/mo · "+usd(mo*12)+"/yr";
+  computeForecast();
+}
+/* ---------- Forecast store (net worth forecast, mortgage sim, kids sim) ---------- */
+let fx={"meta/forecast":{},"sim/mortgage":{}}, kids=[];
+const F=()=>fx["meta/forecast"]||{}, MS=()=>fx["sim/mortgage"]||{};
+const fxId=(path,field)=>`fx|${path.replace("/","|")}|${field}`;
+function fxEv(path,field,kind,label){return ev(fxId(path,field),(fx[path]||{})[field],kind,label);}
+function fxField(path,field,kind,label,unit,hint){
+  return `<div class="field"><span>${label}${hint?`<div class="hint">${hint}</div>`:""}</span><span class="fv">${fxEv(path,field,kind,label)}${unit?`<span class="unit">${unit}</span>`:""}</span></div>`;
+}
+function toggle(path,field,label,on,loc){
+  return `<label class="tg"><input type="checkbox" id="tg-${loc||"x"}|${path}|${field}" data-tg="${path}|${field}" ${on?"checked":""} ${db&&canWrite?"":"disabled"}><span>${label}</span></label>`;
+}
+// amortization: returns monthly payment
+const pmt=(principal,ratePct,years)=>{const n=Math.round((+years||0)*12), r=(+ratePct||0)/1200; if(!principal||!n) return 0; return r?principal*r/(1-Math.pow(1+r,-n)):principal/n;};
+function mortgageSim(){
+  const m=MS(), price=+m.price||0, down=price*(+m.downPct||0)/100, loan=Math.max(0,price-down);
+  const pay=pmt(loan,m.ratePct,m.termYears), closing=price*(+m.closingPct||0)/100;
+  const taxMo=price*(+m.propTaxPct||0)/100/12, ins=+m.insuranceMonthly||0, hoa=+m.hoaMonthly||0;
+  const start=+m.startYear||0, years=[]; let bal=loan, r=(+m.ratePct||0)/1200;
+  const n=Math.round((+m.termYears||0)*12);
+  for(let y=0;y<(+m.termYears||0)&&bal>0.5;y++){let int=0,prin=0;
+    for(let k=0;k<12&&bal>0.5;k++){const i=bal*r, p=Math.min(pay-i,bal); int+=i; prin+=p; bal-=p;}
+    years.push({year:start+y,interest:int,principal:prin,balance:Math.max(0,bal)});}
+  // Paying for the down payment + closing costs: family gift, family loan, HELOC, and the rest from our accounts
+  const need=down+closing, gift=Math.min(+m.giftAmt||0,need);
+  const fam=Math.min(+m.famAmt||0,Math.max(0,need-gift)), heloc=Math.min(+m.helocAmt||0,Math.max(0,need-gift-fam));
+  const fromCash=Math.max(0,need-gift-fam-heloc), over=Math.max(0,(+m.giftAmt||0)+(+m.famAmt||0)+(+m.helocAmt||0)-need);
+  // family loan: amortizing monthly payments from the purchase year
+  const famPay=pmt(fam,m.famRatePct,m.famYears), famYears=loanYears(fam,m.famRatePct,famPay,start,0,+m.famYears||0);
+  // HELOC: interest-only during the draw period, then amortizes over the repayment period
+  const hio=Math.max(0,+m.helocIoYears||0), hrep=Math.max(0,+m.helocRepayYears||0);
+  const helocYears=loanYears(heloc,m.helocRatePct,pmt(heloc,m.helocRatePct,hrep),start,hio,hrep);
+  return {price,down,loan,pay,closing,taxMo,ins,hoa,monthly:pay+taxMo+ins+hoa,start,years,valid:price>0&&start>0&&n>0,
+    need,gift,fam,heloc,fromCash,over,famPay,famYears,helocYears,hio,hrep};
+}
+// yearly schedule for a loan with an optional interest-only period first
+function loanYears(amt,ratePct,amortPay,start,ioYears,amortYears){
+  const out=[]; if(!amt||!start) return out; const r=(+ratePct||0)/1200; let bal=amt;
+  for(let y=0;y<ioYears+amortYears+1&&bal>0.5;y++){let int=0,prin=0;
+    for(let k=0;k<12&&bal>0.5;k++){const i=bal*r; int+=i; if(y>=ioYears){const p=Math.min((amortPay||0)-i,bal); prin+=Math.max(0,p); bal-=Math.max(0,p);} }
+    if(y>=ioYears+amortYears&&bal>0.5&&!amortYears){break;}
+    out.push({year:start+y,interest:int,principal:prin,paid:int+prin,balance:Math.max(0,bal)});}
+  return out;
+}
+function helocCapacity(){ // on the current home: value x max combined loan-to-value - existing mortgage(s)
+  const homes=accounts.filter(a=>a.kind==="asset"&&a.category==="property"&&/home|house|condo/i.test(a.name||""));
+  const value=homes.reduce((s,a)=>s+(+a.balance||0),0); // full property value: the lender looks at the whole home
+  const owed=accounts.filter(a=>a.kind==="debt"&&a.category==="mortgage").reduce((s,a)=>s+(+a.balance||0),0);
+  const cltv=(+MS().helocCltvPct||0)/100;
+  return {value,owed,cltv,cap:Math.max(0,value*cltv-owed),share:homes.length&&typeof homes[0].ownershipShare==="number"?homes[0].ownershipShare:1};
+}
+/* Kids: each category has a yearly amount (today's dollars) and the ages it applies to. 529 contributions are savings, not costs. */
+const KID_CATS=[["nanny","Nanny",0,0],["daycare","Daycare",1,5],["education","Education",6,17],["food","Food",0,17],["medical","Medical",0,17],["supplies","Supplies",0,17],["clothes","Clothes",0,17],["toys","Toys",0,17],["extracurricular","Extracurricular activities",4,17]];
+const kidRange=(k,cat,dFrom,dTo)=>[k[cat+"From"]!=null?+k[cat+"From"]:dFrom, k[cat+"To"]!=null?+k[cat+"To"]:dTo];
+/* Amounts are monthly. Each month of the year is checked against the child's age that month (from birth year and month), then summed to the year. */
+const kidBM=k=>{const m=+k.birthMonth; return m>=1&&m<=12?m:1;};
+const kidAgeInMonth=(k,y,m)=>{const by=+k.birthYear||0; if(!by) return null; const am=(y-by)*12+(m-(kidBM(k)-1)); return am<0?-1:Math.floor(am/12);};
+const kidAge=(k,y)=>{const a=kidAgeInMonth(k,y,11); return a;}; // age in December
+const kidMonthly=(k,cat,df,dt,y)=>{const [a,b]=kidRange(k,cat,df,dt); let n=0; for(let m=0;m<12;m++){const age=kidAgeInMonth(k,y,m); if(age!=null&&age>=0&&age>=a&&age<=b) n++;} return n*(+k[cat]||0);};
+// i = years from the first forecast year; each category inflates at its own rate, or the forecast's expense growth if left blank
+const kidInfl=cat=>{const v=F()["kinf_"+cat]; return (v!=null&&v!=="")?(+v||0)/100:(+F().expenseGrowthPct||0)/100;};
+const kidCost=(k,y,i)=>KID_CATS.reduce((s,[cat,,df,dt])=>s+kidMonthly(k,cat,df,dt,y)*Math.pow(1+kidInfl(cat),i),0);
+const kid529=(k,y)=>kidMonthly(k,"c529",0,17,y);
+/* 529 growth: its own return through age 12 and from age 13 (age-based portfolios get more conservative); blank falls back to the forecast investment return */
+const rate529=(k,y)=>{const f=F(), base=(+f.returnPct||0)/100, a=kidAge(k,y), key=(a!=null&&a>=13)?"r529Late":"r529Early", v=f[key]; return (v!=null&&v!=="")?(+v||0)/100:base;};
+function balances529(years){ // returns {perKid:{id:[...]}, total:[...]} end-of-year balances; contributions earn half a year in the year made
+  const perKid={}, total=years.map(()=>0);
+  kids.forEach(k=>{let b=0; perKid[k.id]=years.map((y,i)=>{const r=rate529(k,y), c=kid529(k,y); b=b*(1+r)+c*(1+r/2); total[i]+=b; return b;});});
+  return {perKid,total};
+}
+function forecast(){
+  const f=F(), H=Math.max(1,Math.min(40,+f.horizon||10)), yr0=new Date().getFullYear()+1;
+  const r=(+f.returnPct||0)/100, ha=(+f.homeAppPct||0)/100, gs=(+f.salaryGrowthPct||0)/100, ge=(+f.expenseGrowthPct||0)/100;
+  const mr=(+f.mortgageRatePct||0)/1200;
+  const A=accounts.filter(a=>a.kind==="asset"), D=accounts.filter(a=>a.kind==="debt");
+  const effv=a=>(+a.balance||0)*(typeof a.ownershipShare==="number"?a.ownershipShare:1);
+  let invest=A.filter(a=>a.category!=="property").reduce((s,a)=>s+effv(a),0);
+  const homes=A.filter(a=>a.category==="property"&&/home|house|condo/i.test(a.name||"")), other=A.filter(a=>a.category==="property"&&!homes.includes(a));
+  let homeV=homes.reduce((s,a)=>s+effv(a),0); const otherV=other.reduce((s,a)=>s+effv(a),0);
+  let mBal=D.filter(d=>d.category==="mortgage").reduce((s,d)=>s+(+d.balance||0),0);
+  const cards=D.filter(d=>d.category!=="mortgage").reduce((s,d)=>s+(+d.balance||0),0);
+  const start=invest+homeV+otherV-mBal-cards;
+  const mPay=mortgages.reduce((s,m)=>s+(+m.monthly||0),0);
+  const rentMo=+((expenses.rent||{}).monthly)||0;
+  const ms=MS(), sim=ms.enabled?mortgageSim():null, simOn=sim&&sim.valid;
+  const kidsOn=!!F().kidsEnabled;
+  const vb={}; PEOPLE.forEach(p=>vb[p]=vestsByYear(p));
+  const rows=[], incomeCols=[];
+  const b529All=balances529(Array.from({length:H},(_,i)=>yr0+i)).total;
+  for(let i=0;i<H;i++){
+    const y=yr0+i, gF=Math.pow(1+gs,i), eF=Math.pow(1+ge,i);
+    // income
+    const wages={}, parts={base:0,bonus:0,stock:0,rental:0,gifts:0};
+    PEOPLE.forEach(p=>{const d=income[p]||{}, st=(vb[p][y]||{}).value||0, base=(+d.base||0)*gF, bonus=base*(+d.bonusPct||0)/100;
+      wages[p]=base+bonus+st; parts.base+=base; parts.bonus+=bonus; parts.stock+=st; parts.rental+=(+d.rental||0)*12; parts.gifts+=+d.gifts||0;});
+    const giftOn=(assume.giftYears||{})[y]!==false; parts.giftsInput=parts.gifts; if(!giftOn) parts.gifts=0;
+    const t=taxes(wages,parts.rental), afterTax=t.I-t.total+parts.gifts;
+    incomeCols.push({y,parts,t,giftOn,net:afterTax});
+    // expenses (existing mortgage payment stops once paid off)
+    let mortPaid=0;
+    for(let k=0;k<12;k++){ if(mBal<=0.5){break;} if(mr>0){const int=mBal*mr, p=Math.min(mPay-int,mBal); mBal-=Math.max(0,p);} mortPaid+=mPay; }
+    if(mr<=0) mortPaid=mPay*12;
+    const otherExp=(monthlyTotal()-mPay)*12*eF;
+    let expensesY=otherExp+mortPaid;
+    // new home simulation
+    let simCost=0, simUp=0, simHome=0, simBal=0, dpPay=0, dpBal=0;
+    if(simOn&&y>=sim.start){
+      const yrRow=sim.years.find(q=>q.year===y); const paid=yrRow?(yrRow.interest+yrRow.principal):0;
+      simCost=paid+(sim.taxMo+sim.ins+sim.hoa)*12*Math.pow(1+ge,y-sim.start);
+      if(ms.replacesRent) expensesY-=rentMo*12*eF;
+      if(y===sim.start) simUp=sim.fromCash; // gift and loans cover the rest of the cash at closing
+      simHome=sim.price*Math.pow(1+ha,y-sim.start+1);
+      simBal=yrRow?yrRow.balance:(y>sim.years[sim.years.length-1]?.year?0:sim.loan);
+      const fy=sim.famYears.find(q=>q.year===y), hy=sim.helocYears.find(q=>q.year===y);
+      dpPay=(fy?fy.paid:0)+(hy?hy.paid:0);
+      dpBal=(fy?fy.balance:(sim.famYears.length&&y<sim.famYears[0].year?sim.fam:0))+(hy?hy.balance:0);
+    }
+    const kidsY=kidsOn?kids.reduce((s,k)=>s+kidCost(k,y,i),0):0;
+    const c529Y=kidsOn?kids.reduce((s,k)=>s+kid529(k,y),0):0;
+    const netCash=afterTax-expensesY-kidsY-simCost-dpPay;
+    // Purchase is treated as Jan 1: the down payment leaves before the year's growth; savings arrive through the year, so they earn half a year.
+    const toInvest=netCash-c529Y; // 529 contributions move into their own accounts
+    const growth=(invest-simUp)*r+toInvest*r/2;
+    invest=invest-simUp+growth+toInvest;
+    const bal529=kidsOn?(b529All[i]||0):0;
+    homeV=homeV*(1+ha);
+    const nw=invest+bal529+homeV+otherV+simHome-mBal-simBal-dpBal-cards;
+    rows.push({y,afterTax,expenses:expensesY,kids:kidsY,simCost,simUp,netCash,growth,invest,homes:homeV+otherV+simHome,debts:mBal+simBal+cards,simEquity:simHome-simBal,bal529,dpPay,dpBal,nw});
+  }
+  return {start,rows,incomeCols,vb,H,yr0,simOn,kidsOn,mr};
+}
+let fcCache=null;
+function buildForecastInputs(){
+  if(document.activeElement&&$("fcSec").contains(document.activeElement)&&document.activeElement.tagName==="INPUT"&&document.activeElement.type!=="checkbox"){computeForecast();return;}
+  const P="meta/forecast";
+  $("fcAssume").innerHTML=[
+    fxField(P,"horizon","int","Years to forecast"),
+    fxField(P,"returnPct","rate","Investment return","per year","Applied to cash, brokerage and retirement accounts"),
+    fxField(P,"homeAppPct","rate","Home value change","per year"),
+    fxField(P,"salaryGrowthPct","rate","Salary growth","per year","Applies to base salary and bonus"),
+    fxField(P,"expenseGrowthPct","rate","Expense growth","per year","Applies to everything on the Expenses tab except the mortgage payment"),
+    fxField(P,"mortgageRatePct","rate","Current mortgage interest rate","","Lets the forecast pay down your current mortgage balance. Leave at 0 to hold the balance flat")
+  ].join("");
+  $("fcSims").innerHTML=toggle("sim/mortgage","enabled","Include Mortgage (forecast)",!!MS().enabled,"fc")+toggle("meta/forecast","kidsEnabled","Include Kids (forecast)",!!F().kidsEnabled,"fc");
+  computeForecast();
+}
+function buildMortgageInputs(){
+  if(document.activeElement&&$("mtgSec").contains(document.activeElement)&&document.activeElement.tagName==="INPUT"&&document.activeElement.type!=="checkbox"){computeForecast();return;}
+  const P="sim/mortgage";
+  $("mtgToggles").innerHTML=toggle(P,"enabled","Include in net worth forecast",!!MS().enabled,"mtg")+toggle(P,"replacesRent","Replaces our rent from the purchase year",!!MS().replacesRent,"mtg");
+  $("mtgInputs").innerHTML=[
+    fxField(P,"price","usd","Home price"),
+    fxField(P,"downPct","rate","Down payment","% of price"),
+    fxField(P,"ratePct","rate","Interest rate","per year"),
+    fxField(P,"termYears","int","Loan term"),
+    fxField(P,"startYear","year","Purchase year"),
+    fxField(P,"closingPct","rate","Closing costs","% of price"),
+    fxField(P,"propTaxPct","rate","Property tax","% of price per year","Your county’s effective rate on the purchase price"),
+    fxField(P,"insuranceMonthly","usd","Home insurance","/mo"),
+    fxField(P,"hoaMonthly","usd","HOA dues","/mo")
+  ].join("");
+  $("dpInputs").innerHTML=[
+    `<div class="dp-h">Gift from family</div>`,
+    fxField(P,"giftAmt","usd","Cash gift","one time","Not taxable to you; lenders ask for a gift letter"),
+    `<div class="dp-h">Family loan</div>`,
+    fxField(P,"famAmt","usd","Amount borrowed"),
+    fxField(P,"famRatePct","rate","Interest rate","per year","The IRS expects at least its minimum rate (AFR) on family loans over $10,000"),
+    fxField(P,"famYears","int","Paid back over"),
+    `<div class="dp-h">HELOC on your current home</div>`,
+    fxField(P,"helocCltvPct","rate","Lender’s max combined loan-to-value","% of home value","Usually 80–90%. Sets how much you could borrow"),
+    fxField(P,"helocAmt","usd","Amount drawn"),
+    fxField(P,"helocRatePct","rate","Interest rate","per year","Variable; usually tied to the prime rate"),
+    fxField(P,"helocIoYears","int","Interest-only period","","Typical draw period is 10 years"),
+    fxField(P,"helocRepayYears","int","Then repaid over","","Typical repayment period is 20 years")
+  ].join("");
+  computeForecast();
+}
+function buildKids(){
+  if(document.activeElement&&$("kidsSec").contains(document.activeElement)&&document.activeElement.tagName==="INPUT"&&document.activeElement.type!=="checkbox"){computeForecast();return;}
+  const ed=!!db&&canWrite;
+  $("kidsToggles").innerHTML=toggle("meta/forecast","kidsEnabled","Include in net worth forecast",!!F().kidsEnabled,"kids");
+  $("kidsInfl").innerHTML=KID_CATS.map(([cat,label])=>fxField("meta/forecast","kinf_"+cat,"rate",label,"per year")).join("");
+  $("kids529").innerHTML=fxField("meta/forecast","r529Early","rate","529 return, ages 0–12","per year","Leave blank to use the forecast investment return")+fxField("meta/forecast","r529Late","rate","529 return, ages 13 and up","per year","Age-based portfolios shift toward bonds as college nears");
+  const ks=kids.slice().sort((a,b)=>(a.order||0)-(b.order||0));
+  $("kidsRows").innerHTML=ks.length?ks.map(k=>{const P="kids/"+k.id;
+    return `<div class="group kid"><div class="group-h"><span>${ed?`<input class="name-in" id="kidname|${esc(k.id)}" value="${esc(k.name||"Child")}" aria-label="Child’s name">`:esc(k.name||"Child")}</span>${ed?`<button type="button" class="del${pendingDelete===k.id?" confirm":""}" data-delkid="${esc(k.id)}">${pendingDelete===k.id?"Tap again to remove":"Remove"}</button>`:""}</div>
+      <div class="kid-top">${fxField(P,"birthYear","year","Birth year")}<div class="field"><span>Birth month</span><span class="fv">${ev(fxId(P,"birthMonth"),kidBM(k),"month","Birth month")}</span></div><span class="hint" id="kidage-${esc(k.id)}"></span></div>
+      <div class="tbl-wrap"><table class="tbl kid-tbl"><thead><tr><th>Category</th><th>Per month</th><th>From age</th><th>To age</th></tr></thead><tbody>
+      ${KID_CATS.map(([cat,label,df,dt])=>{const [a,b]=kidRange(k,cat,df,dt);
+        return `<tr><td>${label}</td><td>${fxEv(P,cat,"usd",`${label} per month for ${k.name||"child"}`)}</td><td>${ev(fxId(P,cat+"From"),a,"age",`${label} starting age`)}</td><td>${ev(fxId(P,cat+"To"),b,"age",`${label} ending age`)}</td></tr>`;}).join("")}
+      <tr class="sav"><td>529 contribution<div class="hint">Savings for education, stays in net worth</div></td><td>${fxEv(P,"c529","usd",`529 contribution per month for ${k.name||"child"}`)}</td><td>${ev(fxId(P,"c529From"),kidRange(k,"c529",0,17)[0],"age","529 starting age")}</td><td>${ev(fxId(P,"c529To"),kidRange(k,"c529",0,17)[1],"age","529 ending age")}</td></tr>
+      </tbody></table></div></div>`;}).join("")
+    :`<div class="empty">No children planned yet. Add a child to model the costs.</div>`;
+  $("addKid").hidden=!ed;
+  computeForecast();
+}
+function lineChart(el,pts){ // pts: [{label, v}]
+  if(!pts.length){el.innerHTML="";return;}
+  const W=720,Hh=240,pl=64,pr=16,pt=16,pb=28, vs=pts.map(p=>p.v);
+  let lo=Math.min(0,...vs), hi=Math.max(...vs); if(hi===lo) hi=lo+1;
+  const step=Math.pow(10,Math.floor(Math.log10((hi-lo)/4))), nice=[1,2,2.5,5,10].map(m=>m*step).find(s=>(hi-lo)/s<=5)||step*10;
+  lo=Math.floor(lo/nice)*nice; hi=Math.ceil(hi/nice)*nice;
+  const x=i=>pl+(pts.length===1?0:i*(W-pl-pr)/(pts.length-1)), y=v=>pt+(hi-v)*(Hh-pt-pb)/(hi-lo);
+  const ticks=[]; for(let v=lo;v<=hi+1e-6;v+=nice) ticks.push(v);
+  const short=v=>Math.abs(v)>=1e6?"$"+(v/1e6).toFixed(v%1e6?1:0)+"M":Math.abs(v)>=1e3?"$"+Math.round(v/1e3)+"K":"$"+v;
+  const path=pts.map((p,i)=>`${i?"L":"M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
+  const area=path+`L${x(pts.length-1).toFixed(1)},${y(Math.max(lo,0)).toFixed(1)}L${x(0).toFixed(1)},${y(Math.max(lo,0)).toFixed(1)}Z`;
+  const every=Math.ceil(pts.length/8);
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Projected household net worth by year" style="width:100%;height:auto;display:block">
+    ${ticks.map(v=>`<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${pl-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="var(--font-num)">${short(v)}</text>`).join("")}
+    <path d="${area}" fill="var(--accent)" fill-opacity=".10"/>
+    <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+    ${pts.map((p,i)=>i%every===0||i===pts.length-1?`<text x="${x(i)}" y="${Hh-8}" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--font-num)">${esc(p.label)}</text>`:"").join("")}
+    <circle cx="${x(pts.length-1)}" cy="${y(pts[pts.length-1].v)}" r="4.5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+    <g class="hov"><line class="hl" y1="${pt}" y2="${Hh-pb}" stroke="var(--muted)" stroke-dasharray="3 3" opacity="0"/><circle class="hc" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2" opacity="0"/></g>
+    ${pts.map((p,i)=>`<rect x="${x(i)-(W-pl-pr)/Math.max(1,pts.length-1)/2}" y="${pt}" width="${(W-pl-pr)/Math.max(1,pts.length-1)}" height="${Hh-pt-pb}" fill="transparent" data-i="${i}"/>`).join("")}
+  </svg><div class="tip" hidden></div>`;
+  const svg=el.querySelector("svg"), tip=el.querySelector(".tip"), hl=el.querySelector(".hl"), hc=el.querySelector(".hc");
+  svg.addEventListener("mousemove",e=>{const r=e.target.closest("rect[data-i]"); if(!r) return; const i=+r.dataset.i;
+    hl.setAttribute("x1",x(i)); hl.setAttribute("x2",x(i)); hl.setAttribute("opacity","1"); hc.setAttribute("cx",x(i)); hc.setAttribute("cy",y(pts[i].v)); hc.setAttribute("opacity","1");
+    tip.hidden=false; tip.innerHTML=`<b>${esc(pts[i].label)}</b> ${usd(pts[i].v)}`;
+    const box=el.getBoundingClientRect(); tip.style.left=Math.min(box.width-150,Math.max(0,x(i)/W*box.width-60))+"px";});
+  svg.addEventListener("mouseleave",()=>{tip.hidden=true; hl.setAttribute("opacity","0"); hc.setAttribute("opacity","0");});
+}
+function computeForecast(){
+  if(!$("fcTbl")) return;
+  const fc=forecast(); fcCache=fc;
+  const last=fc.rows[fc.rows.length-1];
+  $("fcHeadVal").textContent=last?`${usd(last.nw)} by end of ${last.y}`:"—";
+  lineChart($("fcChart"),[{label:"Today",v:fc.start},...fc.rows.map(r=>({label:String(r.y),v:r.nw}))]);
+  const showSim=fc.simOn, showKids=fc.kidsOn, showDp=fc.simOn&&fc.rows.some(r=>r.dpPay||r.dpBal);
+  $("fcTbl").innerHTML=`<thead><tr><th>Year</th><th>After-tax income</th><th>Expenses</th>${showKids?"<th>Kids</th>":""}${showSim?"<th>New home costs</th>"+(showDp?"<th>Down payment loan payments</th>":"")+"<th>Down payment from savings</th>":""}<th>Saved</th><th>Investment growth</th>${showKids?"<th>529 balance</th>":""}${showSim?"<th>New home equity</th>":""}<th>Net worth</th></tr></thead><tbody>
+    <tr><td>Today</td><td>—</td><td>—</td>${showKids?"<td>—</td>":""}${showSim?"<td>—</td>"+(showDp?"<td>—</td>":"")+"<td>—</td>":""}<td>—</td><td>—</td>${showKids?"<td>—</td>":""}${showSim?"<td>—</td>":""}<td>${usd(fc.start)}</td></tr>
+    ${fc.rows.map(r=>`<tr><td>${r.y}</td><td>${usd(r.afterTax)}</td><td>−${usd(r.expenses)}</td>${showKids?`<td>−${usd(r.kids)}</td>`:""}${showSim?`<td>−${usd(r.simCost)}</td>${showDp?`<td>${r.dpPay?"−"+usd(r.dpPay):"—"}</td>`:""}<td>${r.simUp?"−"+usd(r.simUp):"—"}</td>`:""}<td class="${r.netCash<0?"negc":""}">${usd(r.netCash)}</td><td>${usd(r.growth)}</td>${showKids?`<td>${r.bal529?usd(r.bal529):"—"}</td>`:""}${showSim?`<td>${r.simEquity?usd(r.simEquity):"—"}</td>`:""}<td><b>${usd(r.nw)}</b></td></tr>`).join("")}</tbody>`;
+  // income detail (moved from Income tab)
+  const cols=fc.incomeCols;
+  const rr=(label,fn,cls)=>`<tr${cls?` class="${cls}"`:""}><td>${label}</td>${cols.map(c=>`<td>${fn(c)}</td>`).join("")}</tr>`;
+  {const st=ST(); $("taxHead").textContent=`After-tax income · ${cfg.filing==="single"?"single":"married filing jointly"}, ${st.code?st.name:"no state income tax"}, standard deduction`;
+   $("taxNote").textContent=`Taxes use 2026 federal brackets and the standard deduction for your filing status, Social Security (6.2% up to $184,500 per person) and Medicare (1.45% plus 0.9% above the high-income threshold). `+
+     (st.income?`${st.name} income tax uses its brackets and standard deduction${st.surcharge?`, plus the ${(st.surcharge.rate*100).toFixed(1).replace(/\.0$/,"")}% surcharge above ${usd(st.surcharge.threshold)}`:""}. `:`${st.code?st.name+" has":"There is"} no state income tax in this model. `)+
+     (st.payroll?`${st.payroll.label} is ${(st.payroll.rate*100).toFixed(2).replace(/0$/,"")}% of wages${st.payroll.wageCap?" up to "+usd(st.payroll.wageCap):""}. `:"")+
+     `Brackets are held at today’s levels. Vesting stock counts as wages in the year it vests. Rental income is taxed as income but not payroll taxes, and it is taxed in full: rental expenses and depreciation are not modeled. Cash gifts from family are not taxable income. Pre-tax 401(k) contributions are not modeled, so taxes run slightly high.`;}
+  $("taxTbl").innerHTML=`<thead><tr><th>Household</th>${cols.map(c=>`<th>${c.y}</th>`).join("")}</tr></thead><tbody>
+    ${rr("Base salaries",c=>usd(c.parts.base))}${rr("Bonuses",c=>usd(c.parts.bonus))}${rr("Stock vesting",c=>usd(c.parts.stock))}${rr("Rental income",c=>usd(c.parts.rental))}
+    ${rr("Taxable income",c=>usd(c.t.I),"sum")}
+    ${rr("Federal income tax",c=>"−"+usd(c.t.fed),"neg")}${ST().income?rr(esc(ST().name)+" income tax",c=>"−"+usd(c.t.ca),"neg"):""}${rr("Social Security + Medicare",c=>"−"+usd(c.t.ss+c.t.med),"neg")}${ST().payroll?rr(esc(ST().payroll.label||"State payroll tax"),c=>"−"+usd(c.t.sdi),"neg"):""}
+    ${rr("Effective tax rate",c=>c.t.I?pct(c.t.total/c.t.I):"—")}
+    <tr><td>Cash gifts from family (untaxed)<div class="hint">Untick a year to leave it out</div></td>${cols.map(c=>`<td><label class="gift-tg"><input type="checkbox" id="gift-${c.y}" data-gy="${c.y}" ${c.giftOn?"checked":""} ${db&&canWrite?"":"disabled"} aria-label="Include cash gifts from family in ${c.y}"><span class="${c.giftOn?"":"off"}">${usd(c.parts.giftsInput)}</span></label></td>`).join("")}</tr>
+    ${rr("After-tax income",c=>usd(c.net),"sum pos")}</tbody>`;
+  // vesting calendar + reconciliation
+  const gs=grants.slice().sort((a,b)=>(a.grantDate||"").localeCompare(b.grantDate||""));
+  const refs=PEOPLE.flatMap(p=>refresherGrants(p));
+  const refSched=refs.length?[{x:{name:"Future refreshers"},s:refs.flatMap(r=>vestSchedule(r).map(v=>({...v,shares:v.shares,px:r.price}))),px:refs[0].price}]:[];
+  const sched=[...gs.map(x=>({x,s:vestSchedule(x),px:projPrice(x)})),...refSched];
+  const lastFcYear=new Date().getFullYear()+fc.H;
+  const allYears=[...new Set(sched.flatMap(o=>o.s.map(v=>v.date.getFullYear())))].filter(y=>y<=lastFcYear).sort();
+  const fmtSh=n=>(+n.toFixed(1)).toLocaleString("en-US");
+  const cell=(list,px)=>{if(!list.length)return '<span style="color:var(--muted)">—</span>';const sh=list.reduce((s,v)=>s+v.shares,0);return `${fmtSh(sh)} sh<div class="hint">${usd(sh*px)} · ${list.length} vest${list.length>1?"s":""}</div>`;};
+  $("vestCal").innerHTML=gs.length?`<thead><tr><th>Grant</th>${allYears.map(y=>`<th>${y}</th>`).join("")}<th>Final vest</th></tr></thead><tbody>
+    ${sched.map(o=>`<tr><td>${esc(o.x.name)}</td>${allYears.map(y=>`<td>${cell(o.s.filter(v=>v.date.getFullYear()===y),o.px)}</td>`).join("")}<td>${o.s.length?o.s[o.s.length-1].date.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"—"}</td></tr>`).join("")}
+    <tr class="sum"><td>Total</td>${allYears.map(y=>{let sh=0,val=0;sched.forEach(o=>o.s.forEach(v=>{if(v.date.getFullYear()===y){sh+=v.shares;val+=v.shares*o.px;}}));return `<td>${fmtSh(sh)} sh<div class="hint">${usd(val)}</div></td>`;}).join("")}<td></td></tr></tbody>`:"";
+
+  computeMortgage(); computeKids(fc);
+}
+function computeMortgage(){
+  const s=mortgageSim();
+  const hc=helocCapacity();
+  $("dpNeed").textContent=s.need?`${usd(s.need)} needed at closing`:"";
+  const t2=(l,v,h)=>`<div class="tile"><span class="eyebrow">${l}</span><span class="v num">${v}</span>${h?`<span class="hint">${h}</span>`:""}</div>`;
+  $("dpTiles").innerHTML=s.need?[
+    t2("Gift from family",usd(s.gift)),
+    t2("Family loan",usd(s.fam),s.fam?`${usd(s.famPay)}/mo`:""),
+    t2("HELOC",usd(s.heloc),s.heloc?(s.hio?`${usd(s.heloc*(+MS().helocRatePct||0)/1200)}/mo interest-only for ${s.hio} yrs`:`${usd(pmt(s.heloc,MS().helocRatePct,s.hrep))}/mo`):""),
+    t2("From your accounts",usd(s.fromCash),`${s.need?Math.round(s.fromCash/s.need*100):0}% of cash at closing`)].join(""):"";
+  const notes=[];
+  if(hc.cltv) notes.push(`HELOC room on the current home at ${Math.round(hc.cltv*100)}%: ${usd(hc.value)} × ${Math.round(hc.cltv*100)}% − ${usd(hc.owed)} mortgage = <b>${usd(hc.cap)}</b>.${hc.share<1?" The lender uses the whole home’s value, so every co-owner on title would need to sign.":""}`);
+  if(s.heloc>hc.cap&&hc.cltv) notes.push(`<span style="color:var(--bad)">The HELOC draw is ${usd(s.heloc-hc.cap)} more than that limit.</span>`);
+  if(s.over) notes.push(`Sources add up to ${usd(s.over)} more than you need at closing; the extra isn’t counted.`);
+  if(s.fam) notes.push("Mortgage lenders generally won’t let an unsecured loan fund the down payment and count its payments against your income, so plan the family loan with your lender.");
+  $("dpNote").innerHTML=notes.join(" ");
+  $("mtgHeadVal").textContent=s.price?`${usd(s.monthly)}/mo all-in`:"—";
+  const tile=(l,v,h)=>`<div class="tile"><span class="eyebrow">${l}</span><span class="v num">${v}</span>${h?`<span class="hint">${h}</span>`:""}</div>`;
+  $("mtgTiles").innerHTML=s.price?[
+    tile("Down payment",usd(s.down),`${usd(s.loan)} borrowed`),
+    tile("Cash at closing",usd(s.down+s.closing),"down payment + closing costs"),
+    tile("Principal & interest",usd(s.pay)+"/mo"),
+    tile("All-in monthly cost",usd(s.monthly)+"/mo",`incl. ${usd(s.taxMo)} tax · ${usd(s.ins)} insurance · ${usd(s.hoa)} HOA`)].join("")
+    :`<div class="empty">Enter a home price, down payment, rate, term and purchase year to see the costs.</div>`;
+  const ys=s.years.filter((q,i)=>i<10||i%5===4||i===s.years.length-1);
+  const hasF=s.famYears.length, hasH=s.helocYears.length;
+  const fb=y=>{const q=s.famYears.find(z=>z.year===y);return q?usd(q.balance):(y>s.start?"$0":"—");}, hb=y=>{const q=s.helocYears.find(z=>z.year===y);return q?usd(q.balance):(y>s.start?"$0":"—");};
+  $("mtgTbl").innerHTML=s.valid&&s.years.length?`<thead><tr><th>Year</th><th>Interest</th><th>Principal</th><th>Mortgage balance</th>${hasF?"<th>Family loan balance</th>":""}${hasH?"<th>HELOC balance</th>":""}</tr></thead><tbody>
+    ${ys.map(q=>`<tr><td>${q.year}</td><td>${usd(q.interest)}</td><td>${usd(q.principal)}</td><td>${usd(q.balance)}</td>${hasF?`<td>${fb(q.year)}</td>`:""}${hasH?`<td>${hb(q.year)}</td>`:""}</tr>`).join("")}</tbody>`:"";
+}
+function computeKids(fc){
+  const yrs=fc.rows.map(r=>r.y), ge=(+F().expenseGrowthPct||0)/100, ret=(+F().returnPct||0)/100;
+  const ks=kids.slice().sort((a,b)=>(a.order||0)-(b.order||0));
+  const costY=(y,i)=>ks.reduce((s,k)=>s+kidCost(k,y,i),0);
+  const total=yrs.reduce((s,y,i)=>s+costY(y,i),0);
+  $("kidsHeadVal").textContent=ks.length?`${usd(total)} in costs over ${yrs.length} years`:"—";
+  ks.forEach(k=>{const el=$("kidage-"+k.id); if(el){const a=kidAge(k,yrs[0]); el.textContent=a==null?"":a<0?`Arrives in ${k.birthYear}`:`Age ${a} in ${yrs[0]}`;}});
+  // 529 balances: contributions mid-year, growing at the forecast investment return
+  const balRows=balances529(yrs).total;
+  const dash='<span style="color:var(--muted)">—</span>';
+  $("kidsTbl").innerHTML=ks.length?`<thead><tr><th>Child</th>${yrs.map(y=>`<th>${y}</th>`).join("")}</tr></thead><tbody>
+    ${ks.map(k=>`<tr><td>${esc(k.name||"Child")}<div class="hint">living costs · age in Dec</div></td>${yrs.map((y,i)=>{const c=kidCost(k,y,i);const a=kidAge(k,y);return `<td>${c?usd(c):dash}${a!=null&&a>=0&&a<=17?`<div class="hint">age ${a}</div>`:""}</td>`;}).join("")}</tr>`).join("")}
+    <tr class="sum"><td>Total living costs</td>${yrs.map((y,i)=>`<td>${usd(costY(y,i))}</td>`).join("")}</tr>
+    <tr><td>529 contributions</td>${yrs.map(y=>{const c=ks.reduce((s,k)=>s+kid529(k,y),0);return `<td>${c?usd(c):dash}</td>`;}).join("")}</tr>
+    <tr><td>529 balance<div class="hint">end of year, at the 529 return</div></td>${balRows.map(v=>`<td>${v?usd(v):dash}</td>`).join("")}</tr></tbody>`:"";
+}
+
+function rebuildAll(){render();buildIncome();buildExpenses();buildForecastInputs();buildMortgageInputs();buildKids();buildSetup();}
+async function saveField(path,field,v){
+  if(!db||!canWrite)return; if(typeof v==="number"&&!isFinite(v))return;
+  try{await db.doc(path).update({[field]:v});}
+  catch(e){ if(e&&e.code==="invalid_argument"){try{await db.doc(path).set({[field]:v});}catch(e2){canWrite=false;rebuildAll();}} }
+}
+let editSnapshot={};
+function commit(input){
+  if(input.id.startsWith("mortname-")){const id=input.id.slice(9), v=input.value.trim()||"Mortgage";
+    const m=mortgages.find(q=>q.id===id); if(m&&m.name!==v){m.name=v; saveField("mortgages/"+id,"name",v);} return;}
+  if(input.id.startsWith("kidname|")){const id=input.id.slice(8), v=input.value.trim()||"Child";
+    const k=kids.find(q=>q.id===id); if(k&&k.name!==v){k.name=v; saveField("kids/"+id,"name",v);} return;}
+  const f=parseField(input.id); if(!f) return;
+  const v=input.value===""?0:+input.value; if(!isFinite(v)) return;
+  f.apply(v); saveField(f.path,f.field,f.nested?{[f.nested]:v}:v);
+  if(f.acct) saveField(f.path,"asOf",new Date().toISOString().slice(0,10));
+  editing.delete(input.id);
+  setTimeout(rebuildAll,0);
+}
+[$("panel-nw"),$("incomeSec"),$("expSec"),$("fcSec"),$("mtgSec"),$("kidsSec")].forEach(sec=>{
+  sec.addEventListener("click",async e=>{
+    const dk=e.target.closest("button[data-delkid]");
+    if(dk){const id=dk.dataset.delkid;
+      if(pendingDelete===id){pendingDelete=null; kids=kids.filter(k=>k.id!==id); buildKids(); try{await db.doc("kids/"+id).delete();}catch(err){}}
+      else{pendingDelete=id; buildKids(); setTimeout(()=>{if(pendingDelete===id){pendingDelete=null;buildKids();}},4000);}
+      return;}
+    const del=e.target.closest("button.del[data-del]");
+    if(del){const id=del.dataset.del;
+      if(pendingDelete===id){pendingDelete=null; mortgages=mortgages.filter(m=>m.id!==id); buildExpenses(); try{await db.doc("mortgages/"+id).delete();}catch(err){}}
+      else{pendingDelete=id; buildExpenses(); setTimeout(()=>{if(pendingDelete===id){pendingDelete=null;buildExpenses();}},4000);}
+      return;}
+    const b=e.target.closest("button.ev-btn"); if(!b) return;
+    if(b.dataset.edit){const id=b.dataset.edit; editing.add(id);
+      rebuildAll(); const i=$(id); if(i){editSnapshot[id]=i.value; i.focus(); i.select();}}
+    else if(b.dataset.done){const i=$(b.dataset.done); if(i) commit(i);}
+  });
+  sec.addEventListener("keydown",e=>{
+    const t=e.target; if(t.tagName!=="INPUT"||t.type==="checkbox") return;
+    if(e.key==="Enter"){e.preventDefault(); t.blur();}
+    else if(e.key==="Escape"){e.preventDefault(); const f=parseField(t.id);
+      if(f&&editSnapshot[t.id]!=null){f.apply(+editSnapshot[t.id]||0);}
+      cancelEdit=t.id; editing.delete(t.id); t.blur(); setTimeout(rebuildAll,0);}
+  });
+  sec.addEventListener("focusout",e=>{
+    const t=e.target; if(t.tagName!=="INPUT"||t.type==="checkbox") return;
+    if(cancelEdit===t.id){cancelEdit=null;return;}
+    commit(t);
+  });
+  sec.addEventListener("change",e=>{const t=e.target; if(!t.dataset||!t.dataset.tg) return;
+    const [path,field]=t.dataset.tg.split("|"), on=t.checked;
+    fx[path]={...(fx[path]||{}),[field]:on}; buildForecastInputs(); buildMortgageInputs(); buildKids();
+    saveField(path,field,on);
+  });
+  sec.addEventListener("change",e=>{const t=e.target; if(!t.dataset||!t.dataset.gy) return;
+    const y=t.dataset.gy, on=t.checked;
+    assume={...assume,giftYears:{...(assume.giftYears||{}),[y]:on}}; computeIncome();
+    saveField("meta/assumptions","giftYears",{[y]:on});
+  });
+  sec.addEventListener("input",e=>{const t=e.target; const f=parseField(t.id);
+    if(f){f.apply(t.value===""?0:+t.value||0); computeIncome();}
+  });
+});
+$("addMortgage").addEventListener("click",async()=>{
+  if(!db||!canWrite) return;
+  const order=mortgages.reduce((s,m)=>Math.max(s,+m.order||0),0)+1;
+  const ref=db.collection("mortgages").doc();
+  const data={name:"Mortgage "+(mortgages.length+1),monthly:0,owner:"",order};
+  mortgages=[...mortgages,{id:ref.id,...data}]; editing.add(`mort-${ref.id}-monthly`); buildExpenses();
+  const i=$(`mort-${ref.id}-monthly`); if(i) i.focus();
+  try{await ref.set(data);}catch(err){}
+});
+$("addKid").addEventListener("click",async()=>{
+  if(!db||!canWrite) return;
+  const order=kids.reduce((s,k)=>Math.max(s,+k.order||0),0)+1;
+  const ref=db.collection("kids").doc();
+  const data={name:"Child "+(kids.length+1),order};
+  kids=[...kids,{id:ref.id,...data}]; fx["kids/"+ref.id]={...data}; buildKids();
+  try{await ref.set(data);}catch(err){}
+});
+// first full build happens once storage and the household config load (see applyCfg)
+
+/* ---------- Tabs ---------- */
+const TABS=[["networth","nw"],["income","inc"],["expenses","exp"],["forecast","fc"],["mortgage","mtg"],["kids","kids"],["setup","setup"]];
+let curTab="networth";
+function showTab(name){
+  if(!TABS.some(([n])=>n===name)) name="networth";
+  curTab=name;
+  TABS.forEach(([n,s])=>{const on=n===name; $("panel-"+s).hidden=!on; $("tab-"+s).setAttribute("aria-selected",String(on)); $("tab-"+s).tabIndex=on?0:-1;
+    if(on){try{$("tab-"+s).scrollIntoView({block:"nearest",inline:"nearest"});}catch(e){}}});
+  try{localStorage.setItem("nw-tab",name)}catch(e){}
+}
+TABS.forEach(([n,s])=>$("tab-"+s).addEventListener("click",()=>showTab(n)));
+(()=>{const bar=document.querySelector(".tabs"), L=$("tabsLeft"), R=$("tabsRight");
+  const upd=()=>{const max=bar.scrollWidth-bar.clientWidth; const over=max>2; L.hidden=R.hidden=!over; L.disabled=bar.scrollLeft<=2; R.disabled=bar.scrollLeft>=max-2;};
+  L.addEventListener("click",()=>bar.scrollBy({left:-bar.clientWidth*0.7,behavior:"smooth"}));
+  R.addEventListener("click",()=>bar.scrollBy({left:bar.clientWidth*0.7,behavior:"smooth"}));
+  bar.addEventListener("scroll",upd,{passive:true}); window.addEventListener("resize",upd);
+  if(window.ResizeObserver) new ResizeObserver(upd).observe(bar); upd();})();
+document.querySelector(".tabs").addEventListener("keydown",e=>{
+  if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return;
+  const i=TABS.findIndex(([n])=>n===curTab), j=(i+(e.key==="ArrowRight"?1:TABS.length-1))%TABS.length;
+  showTab(TABS[j][0]); $("tab-"+TABS[j][1]).focus();
+});
+(()=>{const h=location.hash.slice(1); let t=TABS.some(([n])=>n===h)?h:null;
+  if(!t){try{t=localStorage.getItem("nw-tab")}catch(e){}}
+  showTab(t||"networth");})();
+
+/* ---------- Setup ---------- */
+const FEATS=[["bonus","Annual bonus"],["stock","Stock grants (RSUs)"],["refresher","Yearly stock refreshers"],["rental","Rental income"],["gifts","Cash gifts from family"]];
+function applyCfg(){ PEOPLE=PKEYS(); rebuildAll(); }
+function buildSetup(){
+  const el=$("setupBody"); if(!el) return;
+  if(el.contains(document.activeElement)&&document.activeElement.tagName==="INPUT"&&document.activeElement.type==="text") return;
+  const ed=!!db&&canWrite, two=cfg.people.length>1;
+  const nameIn=(k)=>`<input class="name-in" id="setup-name-${k}" value="${esc(oname(k))}" aria-label="Name" ${ed?"":"disabled"}>`;
+  el.innerHTML=`<div class="group"><div class="group-h"><span>People</span></div>
+    <div class="fc-grid">
+      <div class="field"><span>First person</span><span class="fv">${nameIn("p1")}</span></div>
+      <div class="field"><span><label class="tg"><input type="checkbox" id="setup-two" ${two?"checked":""} ${ed?"":"disabled"}><span>Second person</span></label></span><span class="fv">${two?nameIn("p2"):""}</span></div>
+      <div class="field"><span>State taxes<div class="hint">${ST().code&&ST().code!=="CA"?"Set by Claude for "+esc(ST().name):"Claude can set any state’s brackets for you"}</div></span><span class="fv"><select class="name-in" id="setup-state" ${ed?"":"disabled"}>
+        <option value="CA"${ST().code==="CA"?" selected":""}>California</option>
+        <option value="NONE"${!ST().code?" selected":""}>No state income tax (e.g. TX, FL, WA, NV)</option>
+        ${ST().code&&ST().code!=="CA"?`<option value="KEEP" selected>${esc(ST().name)}</option>`:""}</select></span></div>
+      <div class="field"><span>Tax filing status</span><span class="fv"><select class="name-in" id="setup-filing" ${ed?"":"disabled"}><option value="mfj"${cfg.filing!=="single"?" selected":""}>Married filing jointly</option><option value="single"${cfg.filing==="single"?" selected":""}>Single</option></select></span></div>
+    </div></div>
+    <div class="group"><div class="group-h"><span>Income types</span></div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Income</th>${cfg.people.map(p=>`<th>${esc(p.name)}</th>`).join("")}</tr></thead><tbody>
+    <tr><td>Base salary</td>${cfg.people.map(()=>`<td>Always on</td>`).join("")}</tr>
+    ${FEATS.map(([f,l])=>`<tr><td>${l}</td>${cfg.people.map(p=>`<td><input type="checkbox" id="setup-feat-${p.key}-${f}" data-feat="${p.key}|${f}" ${feat(p.key,f)?"checked":""} ${ed?"":"disabled"} aria-label="${esc(l)} for ${esc(p.name)}"></td>`).join("")}</tr>`).join("")}
+    </tbody></table></div></div>`;
+}
+async function saveCfg(){ if(!db||!canWrite) return; try{await db.doc("meta/config").set(JSON.parse(JSON.stringify(cfg)));}catch(e){} }
+$("setupSec").addEventListener("change",e=>{
+  const t=e.target;
+  if(t.id==="setup-two"){ if(t.checked){ if(cfg.people.length<2) cfg.people=[...cfg.people,{key:"p2",name:"Person 2"}]; } else { cfg.people=cfg.people.slice(0,1); if(cfg.filing!=="single") cfg.filing="single"; } }
+  else if(t.id==="setup-filing"){ cfg.filing=t.value; }
+  else if(t.id==="setup-state"){ if(t.value==="CA") cfg.state=STATE_CA; else if(t.value==="NONE") cfg.state=STATE_NONE; else return; }
+  else if(t.id&&t.id.startsWith("setup-name-")){ const k=t.id.slice(11), p=cfg.people.find(q=>q.key===k); if(p) p.name=t.value.trim()||p.name; }
+  else if(t.dataset&&t.dataset.feat){ const [k,f]=t.dataset.feat.split("|"); cfg.features={...(cfg.features||{}),[k]:{...((cfg.features||{})[k]||{}),[f]:t.checked}}; }
+  else return;
+  t.blur&&t.type==="text"&&t.blur(); applyCfg(); saveCfg();
+});
+/* Local storage for use outside Claude: the same small API as the artifact database, kept in this browser. */
+function makeLocalDB(){
+  const KEY="household-net-worth-v1"; let store={};
+  try{store=JSON.parse(localStorage.getItem(KEY)||"{}")||{};}catch(e){store={};}
+  const subs=new Set();
+  const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(store));}catch(e){} subs.forEach(f=>{try{f();}catch(e){}});};
+  const rid=()=>Math.random().toString(36).slice(2,12);
+  const merge=(a,b)=>{const o={...(a||{})}; for(const k in b){const v=b[k]; o[k]=(v&&typeof v==="object"&&!Array.isArray(v)&&o[k]&&typeof o[k]==="object"&&!Array.isArray(o[k]))?merge(o[k],v):v;} return o;};
+  const snap=p=>({id:p.split("/").pop(),exists:store[p]!=null,data:()=>store[p],metadata:{fromCache:false,hasPendingWrites:false}});
+  const inColl=c=>Object.keys(store).filter(k=>k.slice(0,k.lastIndexOf("/"))===c).map(snap);
+  const docRef=p=>({id:p.split("/").pop(),path:p,
+    get:async()=>snap(p), set:async d=>{store[p]=JSON.parse(JSON.stringify(d));persist();},
+    update:async d=>{if(store[p]==null) throw {code:"invalid_argument",message:"missing"}; store[p]=merge(store[p],JSON.parse(JSON.stringify(d)));persist();},
+    delete:async()=>{delete store[p];persist();},
+    onSnapshot:n=>{const f=()=>n(snap(p)); subs.add(f); setTimeout(f,0); return ()=>subs.delete(f);}});
+  const collRef=c=>({path:c, doc:id=>docRef(c+"/"+(id||rid())), add:async d=>{const r=docRef(c+"/"+rid()); await r.set(d); return r;},
+    onSnapshot:n=>{const f=()=>{const docs=inColl(c); n({docs,size:docs.length,empty:!docs.length,docChanges:()=>[],metadata:{fromCache:false,hasPendingWrites:false}});}; subs.add(f); setTimeout(f,0); return ()=>subs.delete(f);}});
+  return {doc:docRef,collection:collRef,_export:()=>JSON.parse(JSON.stringify(store)),_import:o=>{store=o&&typeof o==="object"?o:{};persist();}};
+}
+let localMode=false;
+$("exportBtn").addEventListener("click",()=>{
+  if(!db||!db._export) return;
+  const blob=new Blob([JSON.stringify(db._export(),null,2)],{type:"application/json"}), a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="household-net-worth-backup-"+new Date().toISOString().slice(0,10)+".json"; document.body.appendChild(a); a.click(); a.remove();
+  $("backupMsg").textContent="Backup downloaded.";
+});
+$("importFile").addEventListener("change",async e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f||!db||!db._import) return;
+  try{const data=JSON.parse(await f.text()); db._import(data); $("backupMsg").textContent="Backup restored.";}catch(err){$("backupMsg").textContent="That file isn’t a valid backup.";}
+  e.target.value="";
+});
+
+(async()=>{
+  db=await window.claude?.use?.("db") ?? null;
+  const user=await window.claude?.use?.("user") ?? null;
+  if(user){try{const c=await user.can("data.write"); if(c===false) canWrite=false;}catch(e){}}
+  if(!db){db=makeLocalDB(); localMode=true; $("backupGroup").hidden=false;}
+  db.doc("meta/config").onSnapshot(s=>{const d=s.exists?s.data():null;
+    if(d&&Array.isArray(d.people)&&d.people.length) cfg={people:d.people.slice(0,2).map((p,i)=>({key:i?"p2":"p1",name:p.name||("Person "+(i+1))})),filing:d.filing==="single"?"single":"mfj",features:d.features||{},state:d.state&&typeof d.state==="object"?d.state:null};
+    applyCfg();},()=>{});
+  db.collection("expenses").onSnapshot(s=>{expenses={};s.docs.forEach(d=>expenses[d.id]=d.data());buildExpenses();},()=>{});
+  db.collection("mortgages").onSnapshot(s=>{mortgages=s.docs.map(d=>({id:d.id,...d.data()}));buildExpenses();},()=>{});
+  db.doc("meta/spending").onSnapshot(s=>{spendHints=s.exists?(s.data().categories||{}):{};spendSource=s.exists?(s.data().source||""):"";buildExpenses();},()=>{});
+  db.collection("accounts").onSnapshot(s=>{accounts=s.docs.map(d=>({id:d.id,...d.data()}));render();computeForecast();},()=>{});
+  db.doc("meta/forecast").onSnapshot(s=>{fx["meta/forecast"]=s.exists?{...s.data()}:{};buildForecastInputs();buildKids();},()=>{});
+  db.doc("sim/mortgage").onSnapshot(s=>{fx["sim/mortgage"]=s.exists?{...s.data()}:{};buildMortgageInputs();buildForecastInputs();},()=>{});
+  db.collection("kids").onSnapshot(s=>{kids=s.docs.map(d=>({id:d.id,...d.data()}));Object.keys(fx).filter(k=>k.startsWith("kids/")).forEach(k=>delete fx[k]);kids.forEach(k=>fx["kids/"+k.id]={...k});buildKids();},()=>{});
+  db.doc("meta/status").onSnapshot(s=>{meta=s.exists?s.data():null;render();},()=>{});
+  db.collection("income").onSnapshot(s=>{income={};s.docs.forEach(d=>income[d.id]=d.data());buildIncome();},()=>{});
+  db.collection("grants").onSnapshot(s=>{grants=s.docs.map(d=>({id:d.id,...d.data()}));buildIncome();},()=>{});
+  db.doc("meta/assumptions").onSnapshot(s=>{assume=s.exists?{...s.data()}:{};buildIncome();},()=>{});
+})();
+</script>

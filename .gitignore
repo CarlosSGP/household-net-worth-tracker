@@ -1,0 +1,10 @@
+# Keep personal financial data out of this repo
+household-net-worth-backup-*.json
+*.backup.json
+*.png
+*.jpg
+*.jpeg
+*.heic
+*.pdf
+*.csv
+.DS_Store
