@@ -11,6 +11,7 @@ The page has seven tabs: **Net worth** (accounts by owner and category), **Incom
 
 ## Ground rules
 
+- **Publish the template exactly as it is.** Don't redesign, restyle, or rewrite any part of `assets/tracker.html`; the only change is the `<title>`. If something on the page looks wrong or missing, tell the person instead of editing the page.
 - **Passwords are never asked for, typed, or stored.** If balances come from a website, the person logs in themselves in the browser, and you log out when you're done. Never save a login. Store at most the last 4 digits of any account number.
 - **Don't invent numbers.** Every amount comes from the person, a screenshot, or a site they're logged into. Leave anything unknown blank; the page shows an input for empty fields.
 - **Each household gets its own copy.** Never write one household's data into another household's tracker.
